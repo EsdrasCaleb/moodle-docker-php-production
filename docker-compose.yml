@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # O Banco de Dados para teste local
+  # Banco de Dados Local
   db:
     image: postgres:14-alpine
     environment:
@@ -11,29 +9,33 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  # Sua Imagem (Constrói localmente)
+  # Sua Imagem (Build Local)
   app:
-    build: .
+    build:
+      context: .
+      args:
+        # Você pode testar versões diferentes aqui se quiser
+        MOODLE_VERSION: MOODLE_405_STABLE
     ports:
       - "8080:80"
     depends_on:
       - db
     environment:
+      # URL deve bater com a porta mapeada acima
       MOODLE_URL: http://localhost:8080
-      DB_TYPE: pgsql
+
+      # Conexão com o banco (nome do serviço acima é 'db')
       DB_HOST: db
-      DB_PORT: 5432
+      DB_TYPE: pgsql
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
-      # Reduz tempo para teste
-      MOODLE_VERSION: MOODLE_405_STABLE
-      # Ativa Debug para ver erros na tela
+
+      # Opções de Debug para ver erros na tela durante teste
       MOODLE_EXTRA_PHP: "$CFG->debug = 32767; $CFG->debugdisplay = 1;"
     volumes:
+      # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
-      # Opcional: Para ver o código instalado na sua máquina
-      # - ./moodle_src:/var/www/moodle
 
 volumes:
   db_data:
