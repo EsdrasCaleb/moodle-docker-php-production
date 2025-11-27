@@ -1,0 +1,7 @@
+[
+  {
+    "giturl": "git@github.com:h5p/moodle-mod_hvp.git",
+    "branch": "stable",
+    "installpath": "mod/hpv"
+  }
+]
