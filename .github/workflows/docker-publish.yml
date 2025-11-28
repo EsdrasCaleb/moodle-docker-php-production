@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     # Dispara em tags
-    tags: [ '*' ]
+    tags: [ 'v*.*.*' ]
   # Permite rodar manualmente na aba 'Actions' do GitHub
   workflow_dispatch:
 
