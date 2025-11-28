@@ -56,7 +56,6 @@ global \$CFG;
 
 \$CFG->wwwroot   = getenv('MOODLE_URL');
 \$CFG->dataroot  = '/var/www/moodledata';
-\$CFG->admin     = 'admin';
 \$CFG->directorypermissions = 0777;
 
 // --- CONFIGURAÇÃO INJETADA NO BUILD (IMUTÁVEL) ---
@@ -77,5 +76,7 @@ echo "--- [BUILD] Aplicando Permissões de Segurança (Root Only) ---"
 chown -R root:root "$MOODLE_DIR"
 chmod -R 755 "$MOODLE_DIR"
 chmod 644 "$MOODLE_DIR/config.php"
+chown -R www-data:www-data /var/www/moodledata
+chmod -R 777 /var/www/moodledata
 
 echo "--- [BUILD] Concluído."

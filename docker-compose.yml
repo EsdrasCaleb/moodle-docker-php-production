@@ -16,14 +16,14 @@ services:
       args:
         # Você pode testar versões diferentes aqui se quiser
         MOODLE_VERSION: MOODLE_405_STABLE
-        MOODLE_EXTRA_PHP: "$$CFG->sslproxy = 1; $$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
+        MOODLE_EXTRA_PHP: "$$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
     ports:
-      - "8080:80"
+      - "80:80"
     depends_on:
       - db
     environment:
       # URL deve bater com a porta mapeada acima
-      MOODLE_URL: http://localhost:8080
+      MOODLE_URL: http://localhost
 
       # Conexão com o banco (nome do serviço acima é 'db')
       DB_HOST: db

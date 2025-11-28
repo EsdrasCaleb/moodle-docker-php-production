@@ -6,8 +6,6 @@ set -e
 : "${DB_PORT:=5432}"
 : "${MOODLE_LANG:=pt_br}"
 
-echo ">>> Iniciando Moodle Container (Stateless & Hardened)..."
-
 echo ">>> Aguardando Banco ($DB_HOST:$DB_PORT)..."
 until echo > /dev/tcp/$DB_HOST/$DB_PORT; do sleep 3; done 2>/dev/null || true
 
@@ -43,6 +41,7 @@ fi
 
 echo ">>> Limpando caches..."
 su -s /bin/sh www-data -c "php admin/cli/purge_caches.php"
-
+chown -R www-data:www-data /var/www/moodledata
+chmod -R 777 /var/www/moodledata
 echo ">>> Iniciando Supervisor..."
 exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf

@@ -19,17 +19,12 @@ In the terminal, inside the project folder:
 
 # Replace 'your-username' with your Docker Hub username `docker build -t your-username/moodle-php-production:latest .`
 
-2. Test Locally (Simple)
 
-To see if the script initializes (it will fail the database connection, but validate the build):
-
-`docker run -it --rm -p 8080:80 your-username/moodle-php-production:latest`
-
-3. Test Locally (Complete with Database)
+2. Test Locally (Complete with Database)
 
 To test the actual flow (Installation + Database):
 
 `docker-compose -f docker-compose.yml up`
 
-Access http://localhost:8080 after a few minutes.
+Access http://localhost after a few minutes.
 
