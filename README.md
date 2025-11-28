@@ -29,7 +29,7 @@ To see if the script initializes (it will fail the database connection, but vali
 
 To test the actual flow (Installation + Database):
 
-`docker-compose -f docker-compose.local.yml up`
+`docker-compose -f docker-compose.yml up`
 
 Access http://localhost:8080 after a few minutes.
 

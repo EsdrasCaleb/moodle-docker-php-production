@@ -16,6 +16,7 @@ services:
       args:
         # Você pode testar versões diferentes aqui se quiser
         MOODLE_VERSION: MOODLE_405_STABLE
+        MOODLE_EXTRA_PHP: "$$CFG->sslproxy = 1; $$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
     ports:
       - "8080:80"
     depends_on:
@@ -31,8 +32,6 @@ services:
       DB_USER: moodle
       DB_PASS: password
 
-      # Opções de Debug para ver erros na tela durante teste
-      MOODLE_EXTRA_PHP: "$CFG->debug = 32767; $CFG->debugdisplay = 1;"
     volumes:
       # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata

@@ -1,18 +1,19 @@
-ARG PHP_VERSION=${PHP_VERSION:-8.1}
+ARG PHP_VERSION=${PHP_VERSION:-8.3}
 FROM php:${PHP_VERSION}-fpm-bullseye
 
 LABEL maintainer="Esdras Caleb"
 
-# --- Argumentos de Build (Alterar no docker build --build-arg se necessário) ---
+# --- Argumentos de Build ---
 ARG MOODLE_GIT_REPO="https://github.com/moodle/moodle.git"
-ARG MOODLE_VERSION="MOODLE_405_STABLE"
+ARG MOODLE_VERSION="MOODLE_402_STABLE"
+# Novo argumento para injetar PHP no build time
+ARG MOODLE_EXTRA_PHP=""
 
-# --- Variáveis de Ambiente de Execução (Runtime) ---
 ENV MOODLE_LANG="pt_br"
 ENV MOODLE_DIR="/var/www/moodle"
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Instalação de Dependências do SO
+# 1. Instalação de Dependências (REMOVIDO: sudo)
 RUN apt-get update && apt-get install -y \
     nginx supervisor cron git unzip jq \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
@@ -23,7 +24,7 @@ RUN apt-get update && apt-get install -y \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Configurações PHP
+# 2. Configurações PHP (Opcache/Overrides) mantidas...
 RUN { \
         echo 'opcache.memory_consumption=128'; \
         echo 'opcache.interned_strings_buffer=8'; \
@@ -42,29 +43,25 @@ RUN { \
         echo 'max_input_vars = 5000'; \
     } > /usr/local/etc/php/conf.d/moodle-overrides.ini
 
-# 3. Preparação da Estrutura
+# 3. Preparação
 RUN mkdir -p /var/www/moodledata \
     && mkdir -p /var/log/supervisor \
     && mkdir -p $MOODLE_DIR
 
-# 4. Copiar Scripts e Configs
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY config-extra.php* /usr/local/bin/config-extra.php
-
-# 5. O GRANDE PASSO: Build do Moodle (Código "Assado" na Imagem)
 COPY build_assets.sh /usr/local/bin/build_assets.sh
 COPY plugins.json /tmp/plugins.json
 
+# 4. BUILD (Passamos o MOODLE_EXTRA_PHP como argumento aqui)
 RUN chmod +x /usr/local/bin/build_assets.sh \
-    && /usr/local/bin/build_assets.sh "$MOODLE_DIR" "$MOODLE_VERSION" "$MOODLE_GIT_REPO" \
-    && chown -R www-data:www-data $MOODLE_DIR \
+    && /usr/local/bin/build_assets.sh "$MOODLE_DIR" "$MOODLE_VERSION" "$MOODLE_GIT_REPO" "$MOODLE_EXTRA_PHP" \
     && chown -R www-data:www-data /var/www/moodledata \
     && chmod 777 /var/www/moodledata \
     && rm /usr/local/bin/build_assets.sh /tmp/plugins.json
 
-# 6. Cron (Apontando para o código já existente)
+# Cron configurado
 RUN echo "*/1 * * * * /usr/local/bin/php ${MOODLE_DIR}/admin/cli/cron.php > /dev/null" > /etc/cron.d/moodle-cron \
     && chmod 0644 /etc/cron.d/moodle-cron \
     && crontab /etc/cron.d/moodle-cron
