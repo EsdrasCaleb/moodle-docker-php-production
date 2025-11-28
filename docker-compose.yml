@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # Banco de Dados Local
   db:
@@ -15,15 +17,14 @@ services:
       context: .
       args:
         # Você pode testar versões diferentes aqui se quiser
-        MOODLE_VERSION: MOODLE_405_STABLE
-        MOODLE_EXTRA_PHP: "$$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
+        MOODLE_VERSION: MOODLE_402_STABLE
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - db
     environment:
       # URL deve bater com a porta mapeada acima
-      MOODLE_URL: http://localhost
+      MOODLE_URL: http://localhost:8080
 
       # Conexão com o banco (nome do serviço acima é 'db')
       DB_HOST: db
@@ -32,6 +33,8 @@ services:
       DB_USER: moodle
       DB_PASS: password
 
+      # Opções de Debug para ver erros na tela durante teste
+      MOODLE_EXTRA_PHP: "$CFG->debug = 32767; $CFG->debugdisplay = 1;"
     volumes:
       # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
