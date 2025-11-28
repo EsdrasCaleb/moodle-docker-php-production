@@ -3,10 +3,14 @@ name: Docker Push
 on:
   push:
     branches: [ "main" ]
-    tags: [ 'v0.1.0' ]
+    # Dispara em tags
+    tags: [ '*' ]
+  # Permite rodar manualmente na aba 'Actions' do GitHub
+  workflow_dispatch:
 
 env:
-  IMAGE_NAME: esdrascaleb/moodle-docker-php-production
+  # Defina o nome da imagem aqui (ex: esdrascaleb/moodle-php-production)
+  IMAGE_NAME: esdrascaleb/moodle-php-production
 
 jobs:
   build:
@@ -32,7 +36,9 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
+            # Gera 'latest' se for a branch main
             type=raw,value=latest,enable={{is_default_branch}}
+            # Gera a versão (ex: 1.0.0) se for uma tag git
             type=semver,pattern={{version}}
 
       - name: Build and push Docker image
@@ -43,3 +49,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Passar argumentos de build se necessário (opcional)
+          build-args: |
+            MOODLE_VERSION=MOODLE_402_STABLE
