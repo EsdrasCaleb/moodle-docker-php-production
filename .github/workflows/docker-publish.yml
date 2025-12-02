@@ -10,7 +10,7 @@ on:
 
 env:
   # Defina o nome da imagem aqui (ex: esdrascaleb/moodle-php-production)
-  IMAGE_NAME: esdrascaleb/moodle-php-production
+  IMAGE_NAME: esdrascaleb/moodle-docker-php-production
 
 jobs:
   build:
