@@ -157,7 +157,7 @@ else
         --lang='$MOODLE_LANG' \
         --adminuser='${MOODLE_ADMIN_USER:-admin}' \
         --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
-        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@localhost}' \
+        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
         --agree-license"; then
 
         su -s /bin/sh www-data -c "php admin/cli/cfg.php --name=fullname --set='${MOODLE_SITE_FULLNAME:-Moodle Site}'"
