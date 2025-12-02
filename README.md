@@ -1,29 +1,148 @@
 # Moodle Docker Image (Production Ready)
 
-Repository responsible for building the customized Moodle Docker image for production use (CapRover, Kubernetes, etc.).
+Repository responsible for building the customized Moodle Docker image for production use (CapRover, Kubernetes, etc.)
 
 Docker Hub: https://hub.docker.com/repository/docker/esdrascaleb/moodle-docker-php-production/general
 
-This image includes:
+A robust, self-contained, and **immutable** Moodle Docker image designed for production environments like **CapRover**, Docker Swarm, and Kubernetes.
 
-- Nginx + PHP-FPM + Supervisor
-- Automatic Moodle installation via Git
-- Plugin management via JSON
-- Dynamic configuration (config.php) via Environment Variables
+Unlike standard images, this image acts as a complete stack (Sidecar pattern) running Nginx, PHP-FPM, and Cron under a Supervisor process. It follows the **"Build-Time Provisioning"** philosophy, meaning Moodle Core and Plugins are baked into the image for faster startup and reliability.
 
-# 🛠️ How to Build and Submit Manually
+### 🚀 Key Features
 
-1. Build (Build the Image)
+-   **All-in-One:** Runs Nginx (Web Server), PHP-FPM, and Moodle Cron in a single container.
 
-In the terminal, inside the project folder:
+-   **Immutable Build:** Moodle source code and plugins are downloaded during `docker build`. The code directory is owned by root and is read-only.
 
-# Replace 'your-username' with your Docker Hub username
-`docker build -t your-username/moodle-php-production:latest .`
+-   **Dynamic Configuration:** Generates `config.php` at build time but reads database/URL settings from Environment Variables at runtime.
 
-2. Test Locally (Complete with Database)
+-   **Plugin Management:** Install plugins automatically via JSON argument during the build.
 
-To test the actual flow (Installation + Database):
+-   **CapRover Ready:** Optimized to handle SSL termination and path routing out-of-the-box.
 
-`docker-compose -f docker-compose.yml up`
+🏗️ 1. Build-Time Variables (`ARG`)
+-----------------------------------
 
-Access http://localhost after a few minutes.
+These variables are used **only when building the image**. Changing them requires a rebuild. Use these to define *what* is installed (Versions, Plugins).
+| **Argument** | **Description** | **Default** |
+| :--- | :--- | :--- |
+|`MOODLE_VERSION` |The Branch or Tag of Moodle to install. |`MOODLE_402_STABLE` |
+|`MOODLE_GIT_REPO` |Source repository for Moodle Core. |`https://github.com/moodle/moodle.git` |
+|`MOODLE_PLUGINS_JSON` |JSON string array of plugins to install. Format: [{"giturl":"...","installpath":"...","branch":"..."}]. |`""` (Empty) |
+|`MOODLE_EXTRA_PHP` |Raw PHP code to inject into `config.php` *permanently*. |`""` (Empty) |
+|`PHP_VERSION` | PHP version that Moodle Runs | 8.3
+
+### How to use (Docker CLI)
+
+```
+# Example: Build Moodle 4.3 with a custom plugin
+docker build\
+  --build-arg MOODLE_VERSION="MOODLE_403_STABLE"\
+  --build-arg MOODLE_PLUGINS_JSON='[{"giturl":"[https://github.com/moodle/moodle-mod_hvp.git](https://github.com/moodle/moodle-mod_hvp.git)","installpath":"mod/hvp"}]'\
+  -t my-custom-moodle .
+
+```
+
+🏃 2. Runtime Environment Variables (`ENV`)
+-------------------------------------------
+
+These variables are used **when starting the container**. Changing them affects the running instance immediately after a restart (no rebuild needed). Use these for connections and secrets.
+
+| **Variable** | **Description** | **Required?** |
+| :--- | :--- | :--- |
+| `MOODLE_URL` | **Critical.** The public URL (e.g., `https://moodle.com`). | **Yes** |
+| `DB_HOST` | Database Hostname. | **Yes** |
+| `DB_NAME` | Database Name. | No (Default: `moodle`) |
+| `DB_USER` | Database User. | No (Default: `moodle`) |
+| `DB_PASS` | Database Password. | **Yes** |
+| `DB_TYPE` | Database Type Eg `pgsql` or `mysqli`... | No (Default: `pgsql`) |
+| `DB_PORT` | Database Port. | No (Default: `5432`) |
+| `DB_PREFIX` | Colluns Prefix| No (Default: `mdl`) |
+| `PHP_MEMORY_LIMIT` | Maximum memory per script (e.g., `512M`, `1G`). | No (Default: `512M`) |
+| `PHP_UPLOAD_MAX_FILESIZE` | Maximum file upload size (e.g., `100M`). | No (Default: `100M`) |
+| `PHP_POST_MAX_SIZE` | Maximum POST size (must be >= upload size). | No (Default: `100M`) |
+| `PHP_MAX_EXECUTION_TIME` | Script execution timeout (in seconds). | No (Default: `600`) |
+| `PHP_MAX_INPUT_VARS` | Maximum number of input variables (increase for large forms/gradebooks). | No (Default: `5000`) |
+
+🛠️ Usage Guide
+---------------
+
+### A. Using with Docker Compose
+
+This example shows how to mix Build-Time args (to choose version) and Runtime envs (to connect to DB).
+
+```
+version: '3.8'
+services:
+  db:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: moodle
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  moodle:
+    # Option 1: Build it yourself with custom plugins/version
+    build:
+      context: .
+      args:
+        MOODLE_VERSION: MOODLE_403_STABLE
+        MOODLE_PLUGINS_JSON: '[{"giturl":"...","branch":"...","installpath":"mod/..."}]'
+
+    # Option 2: Use the pre-built image
+    # image: esdrascaleb/moodle-docker-php-production:latest
+
+    ports:
+      - "80:80"
+    depends_on:
+      - db
+    environment:
+      MOODLE_URL: http://localhost
+      DB_HOST: db
+      DB_TYPE: pgsql
+      DB_NAME: moodle
+      DB_USER: moodle
+      DB_PASS: password
+    volumes:
+      - moodle_data:/var/www/moodledata
+
+volumes:
+  db_data:
+  moodle_data:
+
+```
+
+### B. Using with CapRover
+
+Since CapRover typically pulls the *already built* image, you only need to configure the **Runtime Variables**.
+
+1.  **Deploy via One-Click App (Template):** Use the template provided in the GitHub repository.
+
+2.  **Manual Configuration:**
+
+    -   Create an App (e.g., `moodle`).
+
+    -   Go to **App Configs**.
+
+    -   Add the **Runtime Variables** (`MOODLE_URL`, `DB_HOST`, etc.).
+
+    -   Add a **Persistent Directory**: Path `/var/www/moodledata` -> Label `moodledata`.
+
+    -   **Enable HTTPS** and ensure `MOODLE_URL` starts with `https://`.
+
+Fixing HTTPS/Redirect Loops in CapRover:
+
+If you encounter redirect loops behind CapRover's load balancer, add this variable to App Configs:
+
+`MOODLE_EXTRA_PHP` = `$CFG->sslproxy = 1; $CFG->reverseproxy = 1;`
+
+*(Note: In CapRover UI, use single `$` for variables. In Docker Compose files, use `$$`).*
+
+📂 Persistence
+--------------
+
+-   **`/var/www/moodledata`**: Stores uploaded files, sessions, and cache. **MUST be persisted.**
+
+-   **`/var/www/moodle`**: Contains the application code. **Do NOT persist this.** The code is immutable and inside the image. To update Moodle, simply pull a new image tag.

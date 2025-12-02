@@ -3,20 +3,20 @@ FROM php:${PHP_VERSION}-fpm-bullseye
 
 LABEL maintainer="Esdras Caleb"
 
-# --- Argumentos de Build (Build-Time) ---
-# Versão do Moodle (Tag ou Branch)
-ARG MOODLE_VERSION="MOODLE_402_STABLE"
-# Repositório do Moodle
-ARG MOODLE_GIT_REPO="https://github.com/moodle/moodle.git"
-# Injeção de PHP Extra (Configurações fixas)
-ARG MOODLE_EXTRA_PHP=""
-# JSON de Plugins (String) - Pode ser passado via --build-arg
-ARG MOODLE_PLUGINS_JSON=""
-
-# --- Variáveis de Ambiente (Runtime) ---
+# Variáveis de Ambiente Padrão (Podem ser mudadas no CapRover)
+ENV MOODLE_GIT_REPO="https://github.com/moodle/moodle.git"
+ENV MOODLE_VERSION="MOODLE_402_STABLE"
 ENV MOODLE_LANG="pt_br"
 ENV MOODLE_DIR="/var/www/moodle"
+ENV MOODLE_DATA="/var/www/moodledata"
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Variáveis de Performance PHP (Runtime)
+ENV PHP_MEMORY_LIMIT="512M"
+ENV PHP_UPLOAD_MAX_FILESIZE="100M"
+ENV PHP_POST_MAX_SIZE="100M"
+ENV PHP_MAX_EXECUTION_TIME="600"
+ENV PHP_MAX_INPUT_VARS="5000"
 
 # 1. Instalação de Dependências
 RUN apt-get update && apt-get install -y \
@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Configurações PHP
+# 2. Configs PHP - Opcache (Geralmente fixo, mas pode ser movido se quiser)
 RUN { \
         echo 'opcache.memory_consumption=128'; \
         echo 'opcache.interned_strings_buffer=8'; \
@@ -39,44 +39,22 @@ RUN { \
         echo 'opcache.enable_cli=1'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-RUN { \
-        echo 'file_uploads = On'; \
-        echo 'memory_limit = 512M'; \
-        echo 'upload_max_filesize = 100M'; \
-        echo 'post_max_size = 100M'; \
-        echo 'max_execution_time = 600'; \
-        echo 'max_input_vars = 5000'; \
-    } > /usr/local/etc/php/conf.d/moodle-overrides.ini
+# (Removido o bloco moodle-overrides.ini daqui, pois agora é gerado no entrypoint)
 
-# 3. Preparação
-RUN mkdir -p /var/www/moodledata \
+# 3. Estrutura de Pastas
+RUN mkdir -p $MOODLE_DATA \
     && mkdir -p /var/log/supervisor \
-    && mkdir -p $MOODLE_DIR
+    # O diretório do Moodle é criado vazio aqui
+    && mkdir -p $MOODLE_DIR \
+    && chown -R www-data:www-data $MOODLE_DATA \
+    && chmod 777 $MOODLE_DATA
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY build_assets.sh /usr/local/bin/build_assets.sh
 
-# Copia arquivo se existir (O * torna opcional)
-COPY plugins.json* /tmp/plugins_file.json
-
-# 4. BUILD (Passamos o JSON String como 5º argumento)
-RUN chmod +x /usr/local/bin/build_assets.sh \
-    && /usr/local/bin/build_assets.sh \
-        "$MOODLE_DIR" \
-        "$MOODLE_VERSION" \
-        "$MOODLE_GIT_REPO" \
-        "$MOODLE_EXTRA_PHP" \
-        "$MOODLE_PLUGINS_JSON" \
-    && chown -R www-data:www-data /var/www/moodledata \
-    && chmod 777 /var/www/moodledata \
-    && rm /usr/local/bin/build_assets.sh
-
-# Cron
-RUN echo "*/1 * * * * /usr/local/bin/php ${MOODLE_DIR}/admin/cli/cron.php > /dev/null" > /etc/cron.d/moodle-cron \
-    && chmod 0644 /etc/cron.d/moodle-cron \
-    && crontab /etc/cron.d/moodle-cron
+# Copiamos plugins.json apenas como fallback (padrão), mas a ENV terá prioridade
+COPY plugins.json* /usr/local/bin/default_plugins.json
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

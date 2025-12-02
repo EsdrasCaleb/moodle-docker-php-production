@@ -1,15 +1,12 @@
-name: Docker Push
+name: Docker Push (Multi-PHP)
 
 on:
   push:
     branches: [ "main" ]
-    # Dispara em tags
     tags: [ 'v*.*.*' ]
-  # Permite rodar manualmente na aba 'Actions' do GitHub
   workflow_dispatch:
 
 env:
-  # Defina o nome da imagem aqui (ex: esdrascaleb/moodle-php-production)
   IMAGE_NAME: esdrascaleb/moodle-docker-php-production
 
 jobs:
@@ -18,6 +15,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      matrix:
+        php-version: ['8.0','8.1', '8.2', '8.3']
 
     steps:
       - name: Checkout repository
@@ -36,19 +37,17 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # Gera 'latest' se for a branch main
-            type=raw,value=latest,enable={{is_default_branch}}
-            # Gera a versão (ex: 1.0.0) se for uma tag git
-            type=semver,pattern={{version}}
+            type=raw,value=php${{ matrix.php-version }}
+            type=raw,value=latest,enable=${{ matrix.php-version == '8.3' }}
+            type=semver,pattern={{version}}-php${{ matrix.php-version }}
 
       - name: Build and push Docker image
-        id: build-and-push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Passar argumentos de build se necessário (opcional)
+          # Injeta a versão do PHP da matriz no Dockerfile
           build-args: |
-            MOODLE_VERSION=MOODLE_402_STABLE
+            PHP_VERSION=${{ matrix.php-version }}
