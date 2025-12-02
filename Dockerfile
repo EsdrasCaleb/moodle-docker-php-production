@@ -4,9 +4,6 @@ FROM php:${PHP_VERSION}-fpm-bullseye
 LABEL maintainer="Esdras Caleb"
 
 # Variáveis de Ambiente Padrão (Podem ser mudadas no CapRover)
-ENV MOODLE_GIT_REPO="https://github.com/moodle/moodle.git"
-ENV MOODLE_VERSION="MOODLE_402_STABLE"
-ENV MOODLE_LANG="pt_br"
 ENV MOODLE_DIR="/var/www/moodle"
 ENV MOODLE_DATA="/var/www/moodledata"
 ENV DEBIAN_FRONTEND=noninteractive
