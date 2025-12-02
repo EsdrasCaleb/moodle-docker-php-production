@@ -1,0 +1,12 @@
+[
+  {
+    "giturl": "https://github.com/h5p/moodle-mod_hvp.git",
+    "branch": "stable",
+    "installpath": "mod/hvp"
+  },
+  {
+    "giturl": "https://github.com/davosmith/moodle-checklist.git",
+    "branch": "master",
+    "installpath": "mod/checklist"
+  }
+]
