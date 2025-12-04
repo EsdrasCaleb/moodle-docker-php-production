@@ -148,7 +148,7 @@ until echo > /dev/tcp/$DB_HOST/$DB_PORT; do sleep 3; done 2>/dev/null || true
 
 echo ">>> Verificando Banco..."
 # Verifica se instalado (usando www-data)
-if su -s /bin/sh www-data -c "php -r \"define('CLI_SCRIPT', true); require('$MOODLE_DIR/config.php'); if (\$DB->get_manager()->table_exists('config')) { exit(0); } else { exit(1); }\"" >/dev/null 2>&1; then
+if su -s /bin/sh www-data -c "php -r 'define(\"CLI_SCRIPT\", true); require(\"$MOODLE_DIR/config.php\"); if (\$DB->get_manager()->table_exists(\"config\")) { exit(0); } else { exit(1); }'" >/dev/null 2>&1; then
     echo ">>> Banco existente. Upgrade..."
     su -s /bin/sh www-data -c "php admin/cli/upgrade.php --non-interactive"
 else
@@ -157,7 +157,7 @@ else
         --lang='$MOODLE_LANG' \
         --adminuser='${MOODLE_ADMIN_USER:-admin}' \
         --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
-        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@localhost}' \
+        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
         --agree-license"; then
 
         su -s /bin/sh www-data -c "php admin/cli/cfg.php --name=fullname --set='${MOODLE_SITE_FULLNAME:-Moodle Site}'"

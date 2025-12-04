@@ -17,7 +17,7 @@ services:
       context: .
       args:
         # Você pode testar versões diferentes aqui se quiser
-        MOODLE_VERSION: MOODLE_402_STABLE
+        MOODLE_VERSION: MOODLE_405_STABLE
     ports:
       - "8080:80"
     depends_on:
