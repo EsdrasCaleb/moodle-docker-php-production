@@ -27,7 +27,7 @@ services:
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
-      MOODLE_VERSION: MOODLE_501_STABLE
+      MOODLE_VERSION: MOODLE_405_STABLE
       MOODLE_LANG: pt_br
       MOODLE_ADMIN_USER: admin
       MOODLE_ADMIN_PASS: MoodleAdmin123!

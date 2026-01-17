@@ -26,10 +26,6 @@ Unlike standard images, this image acts as a complete stack (Sidecar pattern) ru
 These variables are used **only when building the image**. Changing them requires a rebuild. Use these to define *what* is installed (Versions, Plugins).
 | **Argument** | **Description** | **Default** |
 | :--- | :--- | :--- |
-|`MOODLE_VERSION` |The Branch or Tag of Moodle to install. |`MOODLE_402_STABLE` |
-|`MOODLE_GIT_REPO` |Source repository for Moodle Core. |`https://github.com/moodle/moodle.git` |
-|`MOODLE_PLUGINS_JSON` |JSON string array of plugins to install. Format: [{"giturl":"...","installpath":"...","branch":"..."}]. |`""` (Empty) |
-|`MOODLE_EXTRA_PHP` |Raw PHP code to inject into `config.php` *permanently*. |`""` (Empty) |
 |`PHP_VERSION` | PHP version that Moodle Runs | 8.3
 
 ### How to use (Docker CLI)
@@ -48,21 +44,28 @@ docker build\
 
 These variables are used **when starting the container**. Changing them affects the running instance immediately after a restart (no rebuild needed). Use these for connections and secrets.
 
-| **Variable** | **Description** | **Required?** |
-| :--- | :--- | :--- |
-| `MOODLE_URL` | **Critical.** The public URL (e.g., `https://moodle.com`). | **Yes** |
-| `DB_HOST` | Database Hostname. | **Yes** |
-| `DB_NAME` | Database Name. | No (Default: `moodle`) |
-| `DB_USER` | Database User. | No (Default: `moodle`) |
-| `DB_PASS` | Database Password. | **Yes** |
-| `DB_TYPE` | Database Type Eg `pgsql` or `mysqli`... | No (Default: `pgsql`) |
-| `DB_PORT` | Database Port. | No (Default: `5432`) |
-| `DB_PREFIX` | Colluns Prefix| No (Default: `mdl`) |
-| `PHP_MEMORY_LIMIT` | Maximum memory per script (e.g., `512M`, `1G`). | No (Default: `512M`) |
-| `PHP_UPLOAD_MAX_FILESIZE` | Maximum file upload size (e.g., `100M`). | No (Default: `100M`) |
-| `PHP_POST_MAX_SIZE` | Maximum POST size (must be >= upload size). | No (Default: `100M`) |
-| `PHP_MAX_EXECUTION_TIME` | Script execution timeout (in seconds). | No (Default: `600`) |
-| `PHP_MAX_INPUT_VARS` | Maximum number of input variables (increase for large forms/gradebooks). | No (Default: `5000`) |
+| **Variable** | **Description** | **Required?**                                        |
+| :--- | :--- |:-----------------------------------------------------|
+|`MOODLE_VERSION` |The Branch or Tag of Moodle to install. | No (Default: `MOODLE_405_STABLE`   )                 |
+|`MOODLE_GIT_REPO` |Source repository for Moodle Core. | No (Default: `https://github.com/moodle/moodle.git`) |
+|`MOODLE_PLUGINS_JSON` |JSON string array of plugins to install. Format: [{"giturl":"...","installpath":"...","branch":"..."}]. | No (Default: `"[]"` (Empty))                         |
+|`MOODLE_EXTRA_PHP` |Raw PHP code to inject into `config.php` *permanently*. | No Default(`""` (Empty))                             |
+| `MOODLE_ADMIN_USER` | Moodle default admin username            | No Default(`admin`)                                  |
+| `MOODLE_ADMIN_PASS` | Moodle default admin password            | No Default(`MoodleAdmin123`)                         |
+| `MOODLE_ADMIN_EMAIL` | Moodle default admin email               | No Default(`admin@example.com`)                    |
+| `MOODLE_URL` | **Critical.** The public URL (e.g., `https://moodle.com`). | **Yes**                                              |
+| `DB_HOST` | Database Hostname. | **Yes**                                              |
+| `DB_NAME` | Database Name. | No (Default: `moodle`)                               |
+| `DB_USER` | Database User. | No (Default: `moodle`)                               |
+| `DB_PASS` | Database Password. | **Yes**                                              |
+| `DB_TYPE` | Database Type Eg `pgsql` or `mysqli`... | No (Default: `pgsql`)                                |
+| `DB_PORT` | Database Port. | No (Default: `5432`)                                 |
+| `DB_PREFIX` | Colluns Prefix| No (Default: `mdl`)                                  |
+| `PHP_MEMORY_LIMIT` | Maximum memory per script (e.g., `512M`, `1G`). | No (Default: `512M`)                                 |
+| `PHP_UPLOAD_MAX_FILESIZE` | Maximum file upload size (e.g., `100M`). | No (Default: `100M`)                                 |
+| `PHP_POST_MAX_SIZE` | Maximum POST size (must be >= upload size). | No (Default: `100M`)                                 |
+| `PHP_MAX_EXECUTION_TIME` | Script execution timeout (in seconds). | No (Default: `600`)                                  |
+| `PHP_MAX_INPUT_VARS` | Maximum number of input variables (increase for large forms/gradebooks). | No (Default: `5000`)                                 |
 
 
 
@@ -93,28 +96,19 @@ After the container is running, configure Moodle system paths:
 This example shows how to mix Build-Time args (to choose version) and Runtime envs (to connect to DB).
 
 ```
-version: '3.8'
 services:
   db:
-    image: postgres:14-alpine
+    image: postgres:18.1-alpine
     environment:
       POSTGRES_USER: moodle
       POSTGRES_PASSWORD: password
       POSTGRES_DB: moodle
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/18/docker
 
-  moodle:
-    # Option 1: Build it yourself with custom plugins/version
+  app:
     build:
       context: .
-      args:
-        MOODLE_VERSION: MOODLE_403_STABLE
-        MOODLE_PLUGINS_JSON: '[{"giturl":"...","branch":"...","installpath":"mod/..."}]'
-
-    # Option 2: Use the pre-built image
-    # image: esdrascaleb/moodle-docker-php-production:latest
-
     ports:
       - "80:80"
     depends_on:
@@ -126,7 +120,29 @@ services:
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
+      MOODLE_VERSION: MOODLE_405_STABLE
+      MOODLE_LANG: pt_br
+      MOODLE_ADMIN_USER: admin
+      MOODLE_ADMIN_PASS: MoodleAdmin123!
+      MOODLE_ADMIN_EMAIL: admin@example.com
+      PHP_MEMORY_LIMIT: 512M
+      PHP_MAX_EXECUTION_TIME: 600
+      MOODLE_PLUGINS_JSON: |
+        [
+          {
+            "giturl": "https://github.com/h5p/moodle-mod_hvp.git",
+            "branch": "stable",
+            "installpath": "mod/hvp"
+          },
+          {
+            "giturl": "https://github.com/davosmith/moodle-checklist.git",
+            "branch": "master",
+            "installpath": "mod/checklist"
+          }
+        ]
+      MOODLE_EXTRA_PHP: "$$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
     volumes:
+      # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
 
 volumes:
@@ -166,4 +182,4 @@ If you encounter redirect loops behind CapRover's load balancer, add this variab
 
 -   **`/var/www/moodledata`**: Stores uploaded files, sessions, and cache. **MUST be persisted.**
 
--   **`/var/www/moodle`**: Contains the application code. **Do NOT persist this.** The code is immutable and inside the image. To update Moodle, simply pull a new image tag.
+-   **`/var/www/moodle`**: Contains the application code. **Do NOT persist this.** The code is immutable and inside the image. To update Moodle, simply restart image.
