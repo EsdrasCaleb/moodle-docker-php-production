@@ -64,6 +64,27 @@ These variables are used **when starting the container**. Changing them affects 
 | `PHP_MAX_EXECUTION_TIME` | Script execution timeout (in seconds). | No (Default: `600`) |
 | `PHP_MAX_INPUT_VARS` | Maximum number of input variables (increase for large forms/gradebooks). | No (Default: `5000`) |
 
+
+
+🏃 3. System Paths
+-------------------------------------------
+
+After the container is running, configure Moodle system paths:
+
+**Site Administration → Server → System Paths**
+
+| Tool            | Path               | Purpose |
+|-----------------|--------------------|---------|
+| PHP             | `/usr/bin/local/php` | PHP binary used by Moodle |
+| du              | `/usr/bin/du`        | Disk usage calculations |
+| aspell          | `/usr/bin/aspell`    | Spell checking |
+| dot (Graphviz)  | `/usr/bin/dot`       | Graph generation |
+| ghostscript     | `/usr/bin/gs`        | PDF processing |
+| pdftoppm        | `/usr/bin/pdftoppm`  | PDF thumbnails and image conversion |
+| python          | `/usr/bin/python3`   | Required by document conversion and ML plugins |
+
+
+
 🛠️ Usage Guide
 ---------------
 

@@ -1,30 +1,25 @@
-version: '3.8'
-
 services:
   # Banco de Dados Local
   db:
-    image: postgres:14-alpine
+    image: postgres:18.1-alpine
     environment:
       POSTGRES_USER: moodle
       POSTGRES_PASSWORD: password
       POSTGRES_DB: moodle
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/18/docker
 
   # Sua Imagem (Build Local)
   app:
     build:
       context: .
-      args:
-        # Você pode testar versões diferentes aqui se quiser
-        MOODLE_VERSION: MOODLE_405_STABLE
     ports:
-      - "8080:80"
+      - "80:80"
     depends_on:
       - db
     environment:
       # URL deve bater com a porta mapeada acima
-      MOODLE_URL: http://localhost:8080
+      MOODLE_URL: http://localhost
 
       # Conexão com o banco (nome do serviço acima é 'db')
       DB_HOST: db
@@ -32,9 +27,28 @@ services:
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
-
+      MOODLE_VERSION: MOODLE_501_STABLE
+      MOODLE_LANG: pt_br
+      MOODLE_ADMIN_USER: admin
+      MOODLE_ADMIN_PASS: MoodleAdmin123!
+      MOODLE_ADMIN_EMAIL: admin@example.com
+      PHP_MEMORY_LIMIT: 512M
+      PHP_MAX_EXECUTION_TIME: 600
+      MOODLE_PLUGINS_JSON: |
+        [
+          {
+            "giturl": "https://github.com/h5p/moodle-mod_hvp.git",
+            "branch": "stable",
+            "installpath": "mod/hvp"
+          },
+          {
+            "giturl": "https://github.com/davosmith/moodle-checklist.git",
+            "branch": "master",
+            "installpath": "mod/checklist"
+          }
+        ]
       # Opções de Debug para ver erros na tela durante teste
-      MOODLE_EXTRA_PHP: "$CFG->debug = 32767; $CFG->debugdisplay = 1;"
+      MOODLE_EXTRA_PHP: "$$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
     volumes:
       # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
