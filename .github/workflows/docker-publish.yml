@@ -1,9 +1,8 @@
-name: Docker Push (Multi-PHP)
+name: Docker Push (Multi-PHP & Multi-OS)
 
 on:
   push:
     branches: [ "main" ]
-    tags: [ 'v*.*.*' ]
   workflow_dispatch:
 
 env:
@@ -17,8 +16,10 @@ jobs:
       packages: write
 
     strategy:
+      fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2','8.3', '8.4']
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+        os-type: ['debian', 'alpine'] # Nova dimensão da matriz
 
     steps:
       - name: Checkout repository
@@ -36,18 +37,20 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
+          # Gera tags inteligentes: ex php8.3 e php8.3-alpine
           tags: |
-            type=raw,value=php${{ matrix.php-version }}
-            type=raw,value=latest,enable=${{ matrix.php-version == '8.3' }}
-            type=semver,pattern={{version}}-php${{ matrix.php-version }}
+            type=raw,value=php${{ matrix.php-version }}${{ matrix.os-type == 'alpine' && '-alpine' || '' }}
+            type=raw,value=latest${{ matrix.os-type == 'alpine' && '-alpine' || '' }},enable=${{ matrix.php-version == '8.3' }}
+            type=semver,pattern={{version}}-php${{ matrix.php-version }}${{ matrix.os-type == 'alpine' && '-alpine' || '' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          # Seleciona o Dockerfile correto baseado na matriz
+          file: ${{ matrix.os-type == 'alpine' && './DockerfileAlpine' || './Dockerfile' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Injeta a versão do PHP da matriz no Dockerfile
           build-args: |
             PHP_VERSION=${{ matrix.php-version }}

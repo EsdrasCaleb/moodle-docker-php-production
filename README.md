@@ -183,3 +183,8 @@ If you encounter redirect loops behind CapRover's load balancer, add this variab
 -   **`/var/www/moodledata`**: Stores uploaded files, sessions, and cache. **MUST be persisted.**
 
 -   **`/var/www/moodle`**: Contains the application code. **Do NOT persist this.** The code is immutable and inside the image. To update Moodle, simply restart image.
+
+📂 Tags
+--------------
+Alpine - focused to horizontal scaling does not execute cron
+Debian - focused in vertical scaling does execute cron

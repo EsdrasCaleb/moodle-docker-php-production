@@ -1,5 +1,5 @@
 ARG PHP_VERSION=${PHP_VERSION:-8.3}
-FROM php:${PHP_VERSION}-fpm-bullseye
+FROM php:${PHP_VERSION}-fpm-trixie
 
 LABEL maintainer="Esdras Caleb"
 
@@ -15,36 +15,29 @@ ENV PHP_POST_MAX_SIZE="100M"
 ENV PHP_MAX_EXECUTION_TIME="600"
 ENV PHP_MAX_INPUT_VARS="5000"
 
-# 1. Install Dependencies, System Binaries, and Database Drivers
-RUN apt-get update && apt-get install -y gnupg2 \
+# 1. Packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg2 curl ca-certificates lsb-release \
     nginx supervisor cron git unzip jq \
-    # Standard Moodle PHP extension requirements
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
     libicu-dev libxml2-dev libpq-dev libonig-dev libxslt1-dev \
-    libsodium-dev \
-    # Database dependencies (MSSQL, PostgreSQL)
-    unixodbc-dev \
-    # --- Moodle System Binaries (Requested) ---
-    graphviz \
-    aspell \
-    ghostscript \
-    poppler-utils \
-    python3 \
-    # coreutils (includes 'du') is usually present, but we ensure tools are here
-    # --- Memcached & MongoDB System Dependencies ---
-    libmemcached-dev \
-    zlib1g-dev \
-    libssl-dev \
-    # ------------------------------------------
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
-    # --- Install PECL Extensions (Redis, SQL Server, Memcached, MongoDB) ---
-    && pecl install redis sqlsrv pdo_sqlsrv memcached mongodb \
-    && docker-php-ext-enable redis sqlsrv pdo_sqlsrv memcached mongodb \
-    # -------------------------------------
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libsodium-dev unixodbc-dev \
+    graphviz aspell ghostscript poppler-utils python3 \
+    libmemcached-dev zlib1g-dev libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-archive-keyring.gpg \
+    && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium
+
+RUN pecl install redis sqlsrv pdo_sqlsrv memcached mongodb \
+    && docker-php-ext-enable redis sqlsrv pdo_sqlsrv memcached mongodb
 # 2. Optimized PHP Configs - Opcache for Moodle
 RUN { \
         echo 'opcache.memory_consumption=256'; \
