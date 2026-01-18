@@ -18,7 +18,7 @@ ENV PHP_MAX_INPUT_VARS="5000"
 # 1. Packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 curl ca-certificates lsb-release \
-    nginx supervisor cron git unzip jq \
+    nginx supervisor git unzip jq \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
     libicu-dev libxml2-dev libpq-dev libonig-dev libxslt1-dev \
     libsodium-dev unixodbc-dev \
@@ -62,11 +62,6 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY plugins.json* /usr/local/bin/default_plugins.json
-
-# Configura o agendamento do cron do Moodle (roda a cada minuto)
-RUN echo "* * * * * /usr/local/bin/php /var/www/moodle/admin/cli/cron.php > /dev/null" | crontab -u www-data -
-# Garante que o arquivo de log do cron exista para o Supervisor não reclamar
-RUN touch /var/log/cron.log && chmod 666 /var/log/cron.log
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
