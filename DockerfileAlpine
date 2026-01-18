@@ -8,7 +8,7 @@ ENV MOODLE_DATA="/var/www/moodledata"
 
 # 1. Dependências de Sistema (Focadas em Moodle + Bancos OpenSource)
 RUN apk add --no-cache bash  \
-    nginx supervisor cronie git unzip jq \
+    nginx supervisor git unzip jq \
     libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
     icu-dev libxml2-dev postgresql-dev oniguruma-dev \
     libxslt-dev libsodium-dev libmemcached-dev zlib-dev openssl-dev \

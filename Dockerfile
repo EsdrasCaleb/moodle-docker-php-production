@@ -63,6 +63,11 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY plugins.json* /usr/local/bin/default_plugins.json
 
+# Configura o agendamento do cron do Moodle (roda a cada minuto)
+RUN echo "* * * * * /usr/local/bin/php /var/www/moodle/admin/cli/cron.php > /dev/null" | crontab -u www-data -
+# Garante que o arquivo de log do cron exista para o Supervisor não reclamar
+RUN touch /var/log/cron.log && chmod 666 /var/log/cron.log
+
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
