@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         php-version: ['8.1', '8.2', '8.3', '8.4']
-        os-type: ['complete', 'minimal']
+        os-type: ['debian', 'alpine']
 
     steps:
       - name: Checkout repository
@@ -34,14 +34,13 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ matrix.os-type }}-php${{ matrix.php-version }}
-            type=raw,value=${{ matrix.os-type }}-latest,enable=${{ matrix.php-version == '8.3' }}
 
       # 1. Build local (sem push) para o scan
       - name: Build image locally for scanning
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.os-type == 'minimal' && './Dockerfile.alpine' || './Dockerfile' }}
+          file: ${{ matrix.os-type == 'alpine' && './DockerfileAlpine' || './Dockerfile' }}
           load: true # Carrega a imagem no daemon local em vez de fazer push
           tags: ${{ env.IMAGE_NAME }}:temp-scan
           build-args: |
@@ -63,7 +62,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.os-type == 'minimal' && './Dockerfile.alpine' || './Dockerfile' }}
+          file: ${{ matrix.os-type == 'alpine' && './DockerfileAlpine' || './Dockerfile' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

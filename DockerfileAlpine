@@ -9,13 +9,13 @@ ENV MOODLE_DATA="/var/www/moodledata"
 # 1. Dependências de Execução (Runtime)
 # Removido python3, jq e bibliotecas de dev após a instalação
 RUN apk add --no-cache \
-    bash nginx supervisor git unzip coreutils \
+    bash nginx supervisor git coreutils \
     libpng libjpeg-turbo freetype libzip \
     icu-libs libxml2 libpq oniguruma \
     libxslt libsodium libmemcached zlib openssl \
     graphviz aspell ghostscript poppler-utils
 
-# 2. Instalação de Extensões e Dependências de Compilação (Build-time)
+# 2. Instalação de Extensões e Build (Tudo em um único RUN para manter a imagem limpa)
 RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
     libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
@@ -24,9 +24,8 @@ RUN apk add --no-cache --virtual .build-deps \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
-    && pecl install redis memcached \
-    && docker-php-ext-enable redis memcached \
-    # Limpeza imediata para reduzir o tamanho da imagem
+    && pecl install apcu redis memcached \
+    && docker-php-ext-enable apcu redis memcached \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
@@ -36,10 +35,12 @@ RUN { \
         echo 'opcache.interned_strings_buffer=16'; \
         echo 'opcache.max_accelerated_files=20000'; \
         echo 'opcache.revalidate_freq=60'; \
-        echo 'opcache.fast_shutdown=1'; \
         echo 'opcache.enable_cli=1'; \
         echo 'opcache.jit=tracing'; \
         echo 'opcache.jit_buffer_size=100M'; \
+        echo 'apc.enabled=1'; \
+        echo 'apc.shm_size=128M'; \
+        echo 'apc.enable_cli=1'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
 # 4. Estrutura de pastas e arquivos

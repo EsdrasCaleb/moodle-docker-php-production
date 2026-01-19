@@ -186,6 +186,10 @@ If you encounter redirect loops behind CapRover's load balancer, add this variab
 
 📂 Tags
 --------------
-Minimal - Uses alpine focused to horizontal scaling and does not have some optional programs to Moodle (present in "3. System Paths")
+Alpine - Uses alpine focused to horizontal scaling
 
-Complete - Uses debian trixie, focused in vertical scaling and have all optional programs in the "3. System Paths"
+Debian - Uses debian focused in vertical scaling, and has support to Microsoft SQL Server
+
+📂 Compatibility
+--------------
+These images were created with the LTS versions in mind, but they also work with Moodle 5.0 and 5.1. If you run into any issues, contact the author.
