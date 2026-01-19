@@ -158,7 +158,7 @@ fi
 # 5. Permissions (Mandatory before DB Setup)
 # ----------------------------------------------------------------------
 echo ">>> Setting permissions..."
-chown -R www-data:www-data "$MOODLE_DIR" "$MOODLE_DATA"
+chown -R root:www-data "$MOODLE_DIR" "$MOODLE_DATA"
 chmod -R 755 "$MOODLE_DIR"
 chmod -R 777 "$MOODLE_DATA"
 
