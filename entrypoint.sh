@@ -109,7 +109,8 @@ if [ ! -z "$PLUGINS_CONTENT" ]; then
             rm -rf "$FULL_PATH/.git"
         done
     else
-        echo "WARNING: Invalid Plugins JSON."
+        echo "WARNING: Invalid Plugins JSON:"
+        echo "$PLUGINS_CONTENT" | jq .;
     fi
 fi
 

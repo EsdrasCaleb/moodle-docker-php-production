@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Dependências de Sistema e MS SQL Server
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gnupg2 curl ca-certificates lsb-release nginx supervisor git \
+    gnupg2 curl ca-certificates lsb-release nginx supervisor git jq \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
     libicu-dev libxml2-dev libpq-dev libonig-dev libxslt1-dev \
     libsodium-dev unixodbc-dev libmemcached-dev zlib1g-dev libssl-dev \
@@ -49,6 +49,7 @@ RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY plugins.json* /usr/local/bin/default_plugins.json
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
