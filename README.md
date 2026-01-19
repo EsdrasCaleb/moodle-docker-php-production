@@ -186,5 +186,6 @@ If you encounter redirect loops behind CapRover's load balancer, add this variab
 
 📂 Tags
 --------------
-Alpine - focused to horizontal scaling does not execute cron
-Debian - focused in vertical scaling does execute cron
+Minimal - Uses alpine focused to horizontal scaling and does not have some optional programs to Moodle (present in "3. System Paths")
+
+Complete - Uses debian trixie, focused in vertical scaling and have all optional programs in the "3. System Paths"
