@@ -1,4 +1,4 @@
-name: Docker Push (Multi-PHP)
+name: Docker Push (Multi-PHP & Multi-OS)
 
 on:
   push:
@@ -11,21 +11,17 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     strategy:
       fail-fast: false
       matrix:
         php-version: ['8.1', '8.2', '8.3', '8.4']
+        os-type: ['complete', 'minimal']
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log into Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -36,19 +32,21 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
-          # Tags simplificadas (ex: php8.3, latest)
+          # Organização das tags conforme solicitado
           tags: |
-            type=raw,value=php${{ matrix.php-version }}
-            type=raw,value=latest,enable=${{ matrix.php-version == '8.3' }}
-            type=semver,pattern={{version}}-php${{ matrix.php-version }}
+            # Tags para versão Complete (Debian)
+            type=raw,value=complete-php${{ matrix.php-version }},enable=${{ matrix.os-type == 'complete' }}
+            
+            # Tags para versão Minimal (Alpine)
+            type=raw,value=minimal-php${{ matrix.php-version }},enable=${{ matrix.os-type == 'minimal' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          # Usa o Dockerfile padrão (Debian Trixie)
-          file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          # Define qual Dockerfile usar
+          file: ${{ matrix.os-type == 'minimal' && './DockerfileAlpine' || './Dockerfile' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

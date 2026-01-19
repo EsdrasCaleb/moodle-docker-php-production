@@ -1,4 +1,4 @@
-ARG PHP_VERSION=${PHP_VERSION:-8.3}
+ARG PHP_VERSION=8.3
 FROM php:${PHP_VERSION}-fpm-alpine
 
 LABEL maintainer="Esdras Caleb"
@@ -6,26 +6,31 @@ LABEL maintainer="Esdras Caleb"
 ENV MOODLE_DIR="/var/www/moodle"
 ENV MOODLE_DATA="/var/www/moodledata"
 
-# 1. Dependências de Sistema (Focadas em Moodle + Bancos OpenSource)
-RUN apk add --no-cache bash  \
-    nginx supervisor git unzip jq \
+# 1. Dependências de Execução (Runtime)
+# Removido python3, jq e bibliotecas de dev após a instalação
+RUN apk add --no-cache \
+    bash nginx supervisor git unzip coreutils \
+    libpng libjpeg-turbo freetype libzip \
+    icu-libs libxml2 libpq oniguruma \
+    libxslt libsodium libmemcached zlib openssl \
+    graphviz aspell ghostscript poppler-utils
+
+# 2. Instalação de Extensões e Dependências de Compilação (Build-time)
+RUN apk add --no-cache --virtual .build-deps \
+    $PHPIZE_DEPS \
     libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
     icu-dev libxml2-dev postgresql-dev oniguruma-dev \
-    libxslt-dev libsodium-dev libmemcached-dev zlib-dev openssl-dev \
-    graphviz aspell ghostscript poppler-utils python3 coreutils
-
-# 2. Configuração e Instalação de Extensões Nativas
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    libxslt-dev libsodium-dev libmemcached-dev zlib-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium
+        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
+    && pecl install redis memcached \
+    && docker-php-ext-enable redis memcached \
+    # Limpeza imediata para reduzir o tamanho da imagem
+    && apk del .build-deps \
+    && rm -rf /tmp/pear
 
-# 3. Extensões PECL (Apenas as estáveis para Alpine)
-RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
-    && pecl install redis memcached mongodb \
-    && docker-php-ext-enable redis memcached mongodb \
-    && apk del .build-deps
-
-# --- Configurações Opcache (Mantenha igual ao seu original) ---
+# 3. Configurações Opcache (Otimizadas para Moodle)
 RUN { \
         echo 'opcache.memory_consumption=256'; \
         echo 'opcache.interned_strings_buffer=16'; \
@@ -37,7 +42,7 @@ RUN { \
         echo 'opcache.jit_buffer_size=100M'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-# Estrutura de pastas e arquivos (CapRover)
+# 4. Estrutura de pastas e arquivos
 RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \
     && chown -R www-data:www-data $MOODLE_DATA \
     && chmod 777 $MOODLE_DATA
@@ -49,4 +54,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
 WORKDIR $MOODLE_DIR
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
