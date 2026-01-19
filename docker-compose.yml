@@ -13,7 +13,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: DockerfileAlpine
+    #  dockerfile: DockerfileAlpine
     ports:
       - "80:80"
     depends_on:
@@ -53,6 +53,9 @@ services:
     volumes:
       # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
 volumes:
   db_data:

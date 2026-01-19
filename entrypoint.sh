@@ -180,10 +180,13 @@ else
         --adminuser='${MOODLE_ADMIN_USER:-admin}' \
         --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
         --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
-        --agree-license"; then
-
-        su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/cfg.php --name=fullname --set='${MOODLE_SITE_FULLNAME:-Moodle Site}'"
-        su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/cfg.php --name=shortname --set='${MOODLE_SITE_SHORTNAME:-Moodle}'"
+        --fullname='${MOODLE_SITE_FULLNAME:-Moodle Site}' \
+        --shortname='${MOODLE_SITE_SHORTNAME:-Moodle}' \
+        --supportemail='${MOODLE_SUPPORT_EMAIL:-support@example.com}' \
+        --agree-license";
+    then
+        su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/cfg.php --name=noreplyaddress --set='${MOODLE_NOREPLY_EMAIL:-noreply@example.com}'"
+        echo ">>> Installation completed successfully!"
     else
         echo "ERROR: Installation failed!"
         exit 1
