@@ -20,26 +20,7 @@ Unlike standard images, this image acts as a complete stack (Sidecar pattern) ru
 
 -   **CapRover Ready:** Optimized to handle SSL termination and path routing out-of-the-box.
 
-🏗️ 1. Build-Time Variables (`ARG`)
------------------------------------
-
-These variables are used **only when building the image**. Changing them requires a rebuild. Use these to define *what* is installed (Versions, Plugins).
-| **Argument** | **Description** | **Default** |
-| :--- | :--- | :--- |
-|`PHP_VERSION` | PHP version that Moodle Runs | 8.3
-
-### How to use (Docker CLI)
-
-```
-# Example: Build Moodle 4.3 with a custom plugin
-docker build\
-  --build-arg MOODLE_VERSION="MOODLE_403_STABLE"\
-  --build-arg MOODLE_PLUGINS_JSON='[{"giturl":"[https://github.com/moodle/moodle-mod_hvp.git](https://github.com/moodle/moodle-mod_hvp.git)","installpath":"mod/hvp"}]'\
-  -t my-custom-moodle .
-
-```
-
-🏃 2. Runtime Environment Variables (`ENV`)
+🏃 1. Runtime Environment Variables (`ENV`)
 -------------------------------------------
 
 These variables are used **when starting the container**. Changing them affects the running instance immediately after a restart (no rebuild needed). Use these for connections and secrets.
@@ -73,7 +54,7 @@ These variables are used **when starting the container**. Changing them affects 
 
 
 
-🏃 3. System Paths
+🏃 2. System Paths
 -------------------------------------------
 
 After the container is running, configure Moodle system paths:
@@ -92,7 +73,7 @@ After the container is running, configure Moodle system paths:
 
 
 
-🛠️ Usage Guide
+🛠️ 3. Usage Guide
 ---------------
 
 ### A. Using with Docker Compose
@@ -181,19 +162,19 @@ If you encounter redirect loops behind CapRover's load balancer, add this variab
 
 *(Note: In CapRover UI, use single `$` for variables. In Docker Compose files, use `$$`).*
 
-📂 Persistence
+📂 5. Persistence
 --------------
 
 -   **`/var/www/moodledata`**: Stores uploaded files, sessions, and cache. **MUST be persisted.**
 
 -   **`/var/www/moodle`**: Contains the application code. **Do NOT persist this.** The code is immutable and inside the image. To update Moodle, simply restart image.
 
-📂 Tags
+🏷️ 6. Tags
 --------------
-Alpine - Uses alpine focused to horizontal scaling
+**🏔️ Alpine** - Uses alpine focused to **↔️ horizontal scaling**
 
-Debian - Uses debian focused in vertical scaling, and has support to Microsoft SQL Server
+**🌀 Debian** - Uses debian focused in **↕️ vertical scaling**, and has support to **🪟 Microsoft SQL Server**
 
-📂 Compatibility
+🧩 7. Compatibility
 --------------
 These images were created with the LTS versions in mind, but they also work with Moodle 5.0 and 5.1. If you run into any issues, contact the author.
