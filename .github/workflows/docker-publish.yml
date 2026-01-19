@@ -1,4 +1,4 @@
-name: Docker Push (Multi-PHP & Multi-OS)
+name: Docker Push (Multi-PHP & Multi-OS + Security Scan)
 
 on:
   push:
@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: esdrascaleb/moodle-docker-php-production
 
 jobs:
-  build:
+  build-and-scan:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,20 +32,38 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
-          # Organização das tags conforme solicitado
           tags: |
-            # Tags para versão Complete (Debian)
-            type=raw,value=complete-php${{ matrix.php-version }},enable=${{ matrix.os-type == 'complete' }}
-            
-            # Tags para versão Minimal (Alpine)
-            type=raw,value=minimal-php${{ matrix.php-version }},enable=${{ matrix.os-type == 'minimal' }}
+            type=raw,value=${{ matrix.os-type }}-php${{ matrix.php-version }}
+            type=raw,value=${{ matrix.os-type }}-latest,enable=${{ matrix.php-version == '8.3' }}
 
+      # 1. Build local (sem push) para o scan
+      - name: Build image locally for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.os-type == 'minimal' && './Dockerfile.alpine' || './Dockerfile' }}
+          load: true # Carrega a imagem no daemon local em vez de fazer push
+          tags: ${{ env.IMAGE_NAME }}:temp-scan
+          build-args: |
+            PHP_VERSION=${{ matrix.php-version }}
+
+      # 2. Scan de Segurança com Trivy
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:temp-scan
+          format: 'table'
+          exit-code: '1' # Faz o workflow falhar se encontrar vulnerabilidades CRÍTICAS
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
+
+      # 3. Push final (só acontece se o scan passar)
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          # Define qual Dockerfile usar
-          file: ${{ matrix.os-type == 'minimal' && './DockerfileAlpine' || './Dockerfile' }}
+          file: ${{ matrix.os-type == 'minimal' && './Dockerfile.alpine' || './Dockerfile' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
