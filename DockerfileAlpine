@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     bash nginx supervisor git coreutils jq \
     libpng libjpeg-turbo freetype libzip \
     icu-libs libxml2 libpq oniguruma \
-    libxslt libsodium libmemcached zlib openssl \
+    libxslt libsodium zlib openssl \
     graphviz aspell ghostscript poppler-utils
 
 # 2. Instalação de Extensões e Build (Tudo em um único RUN para manter a imagem limpa)
@@ -20,7 +20,7 @@ RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
     libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
     icu-dev libxml2-dev postgresql-dev oniguruma-dev \
-    libxslt-dev libsodium-dev libmemcached-dev zlib-dev \
+    libxslt-dev libsodium-dev zlib-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \

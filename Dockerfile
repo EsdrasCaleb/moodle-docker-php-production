@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 curl ca-certificates lsb-release nginx supervisor git jq \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
     libicu-dev libxml2-dev libpq-dev libonig-dev libxslt1-dev \
-    libsodium-dev unixodbc-dev libmemcached-dev zlib1g-dev libssl-dev \
+    libsodium-dev unixodbc-dev zlib1g-dev libssl-dev \
     graphviz aspell ghostscript poppler-utils \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-archive-keyring.gpg \
     && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
