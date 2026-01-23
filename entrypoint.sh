@@ -40,18 +40,18 @@ manage_repo() {
     echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 
-    # 1. Clone inicial / Repositório inexistente
+    # 1. Clone inicial
     if [ ! -d "$path/.git" ]; then
-        echo "    -> [NEW] Cloning repository..."
+        echo "    -> [NEW] Initializing and fetching..."
         mkdir -p "$path"
-        # Limpa se houver lixo sem .git
         if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then rm -rf "$path"/*; fi
 
-        # A estratégia mais segura para aceitar COMMIT ou BRANCH no início:
-        git clone --quiet --no-checkout "$repo_url" "$path"
         cd "$path"
+        git init --quiet
+        git remote add origin "$repo_url"
+        # O segredo: fetch direto do target e checkout do FETCH_HEAD
         git fetch --depth 1 origin "$target"
-        git checkout -f "$target"
+        git checkout -f FETCH_HEAD
         git submodule update --init --recursive --depth 1
         cd - > /dev/null
         return
@@ -65,26 +65,29 @@ manage_repo() {
         "update")
             echo "    -> [UPDATE] Fetching latest..."
             git clean -fdx
-            # Buscamos a referência e forçamos a atualização do ponteiro local
             git fetch --depth 1 origin "$target"
-            git checkout -f "$target"
-            # FETCH_HEAD garante que pegamos o que acabou de vir do cabo
+            # Checkout do que acabou de ser baixado
+            git checkout -f FETCH_HEAD
             git reset --hard FETCH_HEAD
             git submodule update --init --recursive --depth 1
             ;;
         "reset")
-            echo "    -> [RESET] Restoring to $target..."
+            echo "    -> [RESET] Restoring..."
             git clean -fdx
-            # Se a referência não existe localmente (comum em clones rasos), busca-se
-            if ! git rev-parse --verify "$target" >/dev/null 2>&1; then
-                echo "       ! Target not found in local history. Fetching..."
+            # Tenta usar o que já tem, se falhar, busca e usa o FETCH_HEAD
+            if ! git checkout -f "$target" 2>/dev/null; then
+                echo "       ! Target not found locally. Fetching..."
                 git fetch --depth 1 origin "$target"
+                git checkout -f FETCH_HEAD
+                git reset --hard FETCH_HEAD
+            else
+                git reset --hard "$target"
             fi
-            git checkout -f "$target"
-            git reset --hard "$target"
             git submodule update --init --recursive --depth 1
             ;;
     esac
+    # Log para confirmar o que foi baixado
+    echo "    -> Current Commit: $(git rev-parse HEAD)"
     cd - > /dev/null
 }
 
