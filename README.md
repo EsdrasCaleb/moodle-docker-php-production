@@ -25,32 +25,43 @@ Unlike standard images, this image acts as a complete stack (Sidecar pattern) ru
 
 These variables are used **when starting the container**. Changing them affects the running instance immediately after a restart (no rebuild needed). Use these for connections and secrets.
 
-| **Variable** | **Description**                                                                                         | **Required?**                                        |
-| :--- |:--------------------------------------------------------------------------------------------------------|:-----------------------------------------------------|
-|`MOODLE_VERSION` | The Branch or Tag of Moodle to install.                                                                 | No (Default: `MOODLE_405_STABLE`   )                 |
-|`MOODLE_GIT_REPO` | Source repository for Moodle Core.                                                                      | No (Default: `https://github.com/moodle/moodle.git`) |
-|`MOODLE_PLUGINS_JSON` | JSON string array of plugins to install. Format: [{"giturl":"...","installpath":"...","branch":"..."}]. | No (Default: `"[]"` (Empty))                         |
-|`MOODLE_EXTRA_PHP` | Raw PHP code to inject into `config.php` *permanently*.                                                 | No Default(`""` (Empty))                             |
-| `MOODLE_ADMIN_USER` | Moodle default admin username                                                                           | No Default(`admin`)                                  |
-| `MOODLE_ADMIN_PASS` | Moodle default admin password                                                                           | No Default(`MoodleAdmin123!`)                        |
-| `MOODLE_ADMIN_EMAIL` | Moodle default admin email                                                                              | No Default(`admin@example.com`)                      |
-| `MOODLE_SITE_FULLNAME` | Moodle site full name in instalation                                                                    | No Default(`Moodle Site`)                            |
-| `MOODLE_SITE_SHORTNAME` | Moodle site short name in instalation                                                                   | No Default(`Moodle`)                                 |
-| `MOODLE_SUPPORT_EMAIL` | Moodle default support email                                                                            | No Default(`support@example.com`)                    |
-| `MOODLE_NOREPLY_EMAIL` | Moodle default noreply email                                                                            | No Default(`noreply@example.com`)                    |
-| `MOODLE_URL` | **Critical.** The public URL (e.g., `https://moodle.com`).                                              | **Yes**                                              |
-| `DB_HOST` | Database Hostname.                                                                                      | **Yes**                                              |
-| `DB_NAME` | Database Name.                                                                                          | No (Default: `moodle`)                               |
-| `DB_USER` | Database User.                                                                                          | No (Default: `moodle`)                               |
-| `DB_PASS` | Database Password.                                                                                      | **Yes**                                              |
-| `DB_TYPE` | Database Type Eg `pgsql` or `mysqli`...                                                                 | No (Default: `pgsql`)                                |
-| `DB_PORT` | Database Port.                                                                                          | No (Default: `5432`)                                 |
-| `DB_PREFIX` | Colluns Prefix                                                                                          | No (Default: `mdl`)                                  |
-| `PHP_MEMORY_LIMIT` | Maximum memory per script (e.g., `512M`, `1G`).                                                         | No (Default: `512M`)                                 |
+| **Variable**              | **Description**                                                                                         | **Required?**                                        |
+|:--------------------------|:--------------------------------------------------------------------------------------------------------|:-----------------------------------------------------|
+| `MOODLE_VERSION`          | The Branch or Tag of Moodle to install.                                                                 | No (Default: `MOODLE_405_STABLE`   )                 |
+| `MOODLE_GIT_REPO`         | Source repository for Moodle Core.                                                                      | No (Default: `https://github.com/moodle/moodle.git`) |
+| `MOODLE_PLUGINS_JSON`     | JSON string array of plugins to install. Format: [{"giturl":"...","installpath":"...","branch":"..."}]. | No (Default: `"[]"` (Empty))                         |
+| `MOODLE_EXTRA_PHP`        | Raw PHP code to inject into `config.php` *permanently*.                                                 | No Default(`""` (Empty))                             |
+| `MOODLE_LANG`             | Moodle default lang                                                                                     | No Default(`en`)                                     |
+| `MOODLE_ADMIN_USER`       | Moodle default admin username                                                                           | No Default(`admin`)                                  |
+| `MOODLE_ADMIN_PASS`       | Moodle default admin password                                                                           | No Default(`MoodleAdmin123!`)                        |
+| `MOODLE_ADMIN_EMAIL`      | Moodle default admin email                                                                              | No Default(`admin@example.com`)                      |
+| `MOODLE_SITE_FULLNAME`    | Moodle site full name in instalation                                                                    | No Default(`Moodle Site`)                            |
+| `MOODLE_SITE_SHORTNAME`   | Moodle site short name in instalation                                                                   | No Default(`Moodle`)                                 |
+| `MOODLE_SUPPORT_EMAIL`    | Moodle default support email                                                                            | No Default(`support@example.com`)                    |
+| `MOODLE_NOREPLY_EMAIL`    | Moodle default noreply email                                                                            | No Default(`noreply@example.com`)                    |
+| `MOODLE_URL`              | **Critical.** The public URL (e.g., `https://moodle.com`).                                              | **Yes**                                              |
+| `DB_HOST`                 | Database Hostname.                                                                                      | **Yes**                                              |
+| `DB_NAME`                 | Database Name.                                                                                          | No (Default: `moodle`)                               |
+| `DB_USER`                 | Database User.                                                                                          | No (Default: `moodle`)                               |
+| `DB_PASS`                 | Database Password.                                                                                      | **Yes**                                              |
+| `DB_TYPE`                 | Database Type Eg `pgsql` or `mysqli`...                                                                 | No (Default: `pgsql`)                                |
+| `DB_PORT`                 | Database Port.                                                                                          | No (Default: `5432`)                                 |
+| `DB_PREFIX`               | Colluns Prefix                                                                                          | No (Default: `mdl`)                                  |
+| `PHP_MEMORY_LIMIT`        | Maximum memory per script (e.g., `512M`, `1G`).                                                         | No (Default: `512M`)                                 |
 | `PHP_UPLOAD_MAX_FILESIZE` | Maximum file upload size (e.g., `100M`).                                                                | No (Default: `100M`)                                 |
-| `PHP_POST_MAX_SIZE` | Maximum POST size (must be >= upload size).                                                             | No (Default: `100M`)                                 |
-| `PHP_MAX_EXECUTION_TIME` | Script execution timeout (in seconds).                                                                  | No (Default: `600`)                                  |
-| `PHP_MAX_INPUT_VARS` | Maximum number of input variables (increase for large forms/gradebooks).                                | No (Default: `5000`)                                 |
+| `PHP_POST_MAX_SIZE`       | Maximum POST size (must be >= upload size).                                                             | No (Default: `100M`)                                 |
+| `PHP_MAX_EXECUTION_TIME`  | Script execution timeout (in seconds).                                                                  | No (Default: `600`)                                  |
+| `PHP_MAX_INPUT_VARS`      | Maximum number of input variables (increase for large forms/gradebooks).                                | No (Default: `5000`)                                 |
+| `SITE_CODE_STATUS`        | See below                                                                                               | `reset`                                              |
+| `PLUGIN_CODE_STATUS`      | See below                                                                                               | `update`                                             |
+
+Code status Controls how Git handles updates:
+- **static:** Does nothing if the folder already exists. Faster boot. 
+- **reset:** Forces a `git reset --hard` (overwrites local changes and mantain the first download version). 
+- **update:** Downloads the latest version and performs a `git pull` (attempts to keep local changes). 
+
+Reset and update cleans up untracked files (`git clean -fdx`).
+
 
 
 

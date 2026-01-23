@@ -4,10 +4,19 @@ set -e
 # --- Default Environment Variables ---
 : "${MOODLE_DIR:=/var/www/moodle}"
 : "${MOODLE_DATA:=/var/www/moodledata}"
+: "${CODE_CACHE_DIR:=$MOODLE_DATA/sitecode}"     # Cache do Core
+: "${PLUGIN_CACHE_ROOT:=$MOODLE_DATA/plugincode}" # Cache dos Plugins
 : "${DB_PORT:=5432}"
 : "${MOODLE_LANG:=en}"
 : "${MOODLE_GIT_REPO:=https://github.com/moodle/moodle.git}"
 : "${MOODLE_VERSION:=MOODLE_405_STABLE}"
+
+# --- Update Control ---
+# static: only download if do not exists.
+# reset:  reseet to the last download state
+# update:  reseet to the last download state and upates with remote
+: "${SITE_CODE_STATUS:=reset}"
+: "${PLUGIN_CODE_STATUS:=reset}"
 
 # --- PHP Defaults ---
 : "${PHP_MEMORY_LIMIT:=512M}"
@@ -16,12 +25,64 @@ set -e
 : "${PHP_MAX_EXECUTION_TIME:=600}"
 : "${PHP_MAX_INPUT_VARS:=5000}"
 
-echo ">>> Starting Container (Dynamic Mode)..."
+echo ">>> Starting Container (Optimization Mode: $CODE_STATUS)..."
+# ----------------------------------------------------------------------
+# Helper Function: Manage Git Repositories
+# ----------------------------------------------------------------------
+manage_repo() {
+    local path="$1"
+    local repo_url="$2"
+    local branch="$3"
+    local code_status="$4"
+
+    if [ -z "$branch" ]; then branch="$MOODLE_VERSION"; fi
+
+    echo ">>> Managing Repo at: $path"
+    echo "    Branch: $branch | Mode: $code_status"
+
+    # 1. Clone inicial (Sempre recursivo)
+    if [ ! -d "$path/.git" ]; then
+        echo "    -> [NEW] Cloning fresh repository recursively..."
+        mkdir -p "$path"
+        if [ -n "$(ls -A $path 2>/dev/null)" ]; then rm -rf "$path"/*; fi
+        git clone --branch "$branch" --depth 1 --recurse-submodules --shallow-submodules "$repo_url" "$path"
+        return
+    fi
+
+    cd "$path"
+    git config --global --add safe.directory "$path"
+    git remote set-url origin "$repo_url"
+
+    case "$code_status" in
+        "update")
+            echo "    -> [UPDATE] Fetching latest changes (recursive)..."
+            git clean -fdx
+            git fetch --depth 1 --recurse-submodules origin "$branch"
+            # No UPDATE, o FETCH_HEAD acabou de ser criado, então funciona:
+            git reset --hard FETCH_HEAD
+            git submodule update --init --recursive --depth 1
+            ;;
+
+        "reset")
+            echo "    -> [RESET] Restoring code to last known state (Offline)..."
+            git clean -fdx
+            # Aqui está o pulo do gato: resetamos para a branch local que já existe no cache
+            # Se o fetch falhar ou não existir, ele usa a cópia local do último clone/update
+            git reset --hard "$branch" || git reset --hard "origin/$branch"
+            git submodule update --init --recursive --depth 1
+            ;;
+
+        "static")
+            echo "    -> [STATIC] Code exists. Skipping Git operations."
+            ;;
+    esac
+    cd - > /dev/null
+}
 
 # ----------------------------------------------------------------------
-# 0. PHP Configuration (Runtime Overrides)
+# 0. PHP Configuration
 # ----------------------------------------------------------------------
-echo ">>> Applying PHP configurations (Memory: $PHP_MEMORY_LIMIT, Upload: $PHP_UPLOAD_MAX_FILESIZE)..."
+echo ">>> Applying PHP configurations..."
 {
     echo "file_uploads = On"
     echo "memory_limit = ${PHP_MEMORY_LIMIT}"
@@ -32,95 +93,39 @@ echo ">>> Applying PHP configurations (Memory: $PHP_MEMORY_LIMIT, Upload: $PHP_U
 } > /usr/local/etc/php/conf.d/moodle-overrides.ini
 
 # ----------------------------------------------------------------------
-# 1. Git Optimizations (Prevent RPC/GnuTLS errors)
+# 1. Git Optimizations
 # ----------------------------------------------------------------------
 git config --global http.postBuffer 524288000
-git config --global http.lowSpeedLimit 0
-git config --global http.lowSpeedTime 999999
 git config --global core.compression 0
 
 # ----------------------------------------------------------------------
-# 2. Download/Update Moodle Core
+# 2. Moodle Core Layer (Cache -> Deploy)
 # ----------------------------------------------------------------------
-if [ ! -d "$MOODLE_DIR/.git" ]; then
-    echo ">>> Downloading Moodle Core ($MOODLE_VERSION) via Manual Fetch..."
+echo ">>> [LAYER 1] Moodle Core..."
+
+# A. Atualiza o Cache (Code base)
+manage_repo "$CODE_CACHE_DIR" "$MOODLE_GIT_REPO" "$MOODLE_VERSION" "$SITE_CODE_STATUS"
+
+# B. Limpeza Radical do Destino (Garante consistência)
+# Se não é volume persistente, já estaria vazio, mas garantimos aqui.
+if [ -d "$MOODLE_DIR" ]; then
+    echo ">>> Cleaning deployment directory..."
     rm -rf "$MOODLE_DIR"/* "$MOODLE_DIR"/.* 2>/dev/null || true
-    mkdir -p "$MOODLE_DIR"
-    cd "$MOODLE_DIR"
-    git init
-    git config --global --add safe.directory "$MOODLE_DIR"
-    git remote add origin "$MOODLE_GIT_REPO"
-
-    if git fetch --depth 1 origin "$MOODLE_VERSION"; then
-        git checkout FETCH_HEAD
-        echo ">>> Core download complete."
-    else
-        echo "ERROR: Failed to download Moodle. Check connection or version: $MOODLE_VERSION"
-        exit 1
-    fi
-else
-    echo ">>> Checking for Moodle Core updates..."
-    cd "$MOODLE_DIR"
-    git config --global --add safe.directory "$MOODLE_DIR"
-    git remote set-url origin "$MOODLE_GIT_REPO"
-    if git fetch --depth 1 origin "$MOODLE_VERSION"; then
-        git reset --hard FETCH_HEAD
-    fi
 fi
+mkdir -p "$MOODLE_DIR"
+
+# C. Sincroniza Cache -> Produção (Usando CP ao invés de RSYNC)
+echo ">>> [DEPLOY] Copying Core to $MOODLE_DIR..."
+# cp -a preserva permissões e links simbólicos
+cp -a "$CODE_CACHE_DIR/." "$MOODLE_DIR/"
+# Removemos o .git do destino para economizar espaço e segurança
+rm -rf "$MOODLE_DIR/.git"
 
 # ----------------------------------------------------------------------
-# 3. Plugin Installation
+# 3. Generate Config.php (Always Fresh)
 # ----------------------------------------------------------------------
-PLUGINS_CONTENT=""
-if [ ! -z "$MOODLE_PLUGINS_JSON" ] && [ "$MOODLE_PLUGINS_JSON" != "[]" ]; then
-    PLUGINS_CONTENT="$MOODLE_PLUGINS_JSON"
-    echo ">>> Plugins found in environment variable."
-elif [ -f "/usr/local/bin/default_plugins.json" ]; then
-    PLUGINS_CONTENT=$(cat /usr/local/bin/default_plugins.json)
-    echo ">>> Using fallback plugins file."
-fi
-
-if [ ! -z "$PLUGINS_CONTENT" ]; then
-    echo ">>> Processing Plugins..."
-    if echo "$PLUGINS_CONTENT" | jq . >/dev/null 2>&1; then
-        echo "$PLUGINS_CONTENT" | jq -c '.[]' | while read i; do
-            GIT_URL=$(echo "$i" | jq -r '.giturl')
-            GIT_BRANCH=$(echo "$i" | jq -r '.branch // empty')
-            INSTALL_PATH=$(echo "$i" | jq -r '.installpath')
-
-            VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
-
-            # Moodle 5.1+ directory logic
-            if [ "$VERSION_NUM" -ge 501 ] && [[ "$INSTALL_PATH" != public/* ]]; then
-                FULL_PATH="$MOODLE_DIR/public/$INSTALL_PATH"
-            else
-                FULL_PATH="$MOODLE_DIR/$INSTALL_PATH"
-            fi
-
-            echo "--- Plugin: $INSTALL_PATH ($GIT_BRANCH) -> $FULL_PATH ---"
-            [ -d "$FULL_PATH" ] && rm -rf "$FULL_PATH"
-            mkdir -p "$(dirname "$FULL_PATH")"
-
-            git clone --no-checkout "$GIT_URL" "$FULL_PATH"
-            cd "$FULL_PATH"
-            [ ! -z "$GIT_BRANCH" ] && git fetch --depth 1 origin "$GIT_BRANCH" && git checkout FETCH_HEAD || git checkout
-            git submodule update --init --recursive --depth 1
-            cd - > /dev/null
-            rm -rf "$FULL_PATH/.git"
-        done
-    else
-        echo "WARNING: Invalid Plugins JSON:"
-        echo "$PLUGINS_CONTENT" | jq .;
-    fi
-fi
-
-# ----------------------------------------------------------------------
-# 4. Configuration (config.php)
-# ----------------------------------------------------------------------
-if [ ! -f "$MOODLE_DIR/config.php" ]; then
-    echo ">>> Generating config.php..."
-    # Use single quotes for EOF to prevent shell expansion of $CFG
-    cat <<'EOF' > "$MOODLE_DIR/config.php"
+echo ">>> Generating config.php..."
+cat <<'EOF' > "$MOODLE_DIR/config.php"
 <?php
 unset($CFG);
 global $CFG;
@@ -143,70 +148,103 @@ $CFG->wwwroot   = getenv('MOODLE_URL');
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
 $CFG->directorypermissions = 0777;
-
-// --- EXTRAS ---
 EOF
 
-    # Safely append extra PHP without shell expansion
-    if [ ! -z "$MOODLE_EXTRA_PHP" ]; then
-        echo "$MOODLE_EXTRA_PHP" >> "$MOODLE_DIR/config.php"
-    fi
+if [ ! -z "$MOODLE_EXTRA_PHP" ]; then echo "$MOODLE_EXTRA_PHP" >> "$MOODLE_DIR/config.php"; fi
+echo "require_once(__DIR__ . '/lib/setup.php');" >> "$MOODLE_DIR/config.php"
 
-    echo "require_once(__DIR__ . '/lib/setup.php');" >> "$MOODLE_DIR/config.php"
+# ----------------------------------------------------------------------
+# 4. Plugins Layer (Cache -> Deploy)
+# ----------------------------------------------------------------------
+PLUGINS_CONTENT=""
+if [ ! -z "$MOODLE_PLUGINS_JSON" ] && [ "$MOODLE_PLUGINS_JSON" != "[]" ]; then
+    PLUGINS_CONTENT="$MOODLE_PLUGINS_JSON"
+elif [ -f "/usr/local/bin/default_plugins.json" ]; then
+    PLUGINS_CONTENT=$(cat /usr/local/bin/default_plugins.json)
+fi
+
+if [ ! -z "$PLUGINS_CONTENT" ]; then
+    echo ">>> [LAYER 2] Plugins..."
+    # Validação do JSON com feedback de erro
+    if ! echo "$PLUGINS_CONTENT" | jq . >/dev/null 2>&1; then
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "ERROR: Invalid JSON format in MOODLE_PLUGINS_JSON"
+        echo "$PLUGINS_CONTENT" | jq .;
+        exit 1
+    else
+        echo "$PLUGINS_CONTENT" | jq -c '.[]' | while read i; do
+            GIT_URL=$(echo "$i" | jq -r '.giturl')
+            GIT_BRANCH=$(echo "$i" | jq -r '.branch // empty')
+            INSTALL_PATH=$(echo "$i" | jq -r '.installpath')
+
+            VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
+
+            # Ajuste de caminho para Moodle 5.1+
+            if [ "$VERSION_NUM" -ge 501 ] && [[ "$INSTALL_PATH" != public/* ]]; then
+                REL_PATH="public/$INSTALL_PATH"
+            else
+                REL_PATH="$INSTALL_PATH"
+            fi
+
+            PLUGIN_CACHE_PATH="$PLUGIN_CACHE_ROOT/$REL_PATH"
+            PLUGIN_DEST_PATH="$MOODLE_DIR/$REL_PATH"
+
+            # A. Atualiza Cache
+            manage_repo "$PLUGIN_CACHE_PATH" "$GIT_URL" "$GIT_BRANCH" "$PLUGIN_CODE_STATUS"
+
+            # B. Copia Cache -> Produção
+            echo "--- Installing Plugin: $REL_PATH ---"
+            mkdir -p "$(dirname "$PLUGIN_DEST_PATH")"
+
+            # Limpa destino antigo se existir (garante clean install do plugin)
+            rm -rf "$PLUGIN_DEST_PATH"
+
+            # Copia e remove .git
+            cp -a "$PLUGIN_CACHE_PATH/." "$PLUGIN_DEST_PATH/"
+            rm -rf "$PLUGIN_DEST_PATH/.git"
+        done
+    fi
 fi
 
 # ----------------------------------------------------------------------
-# 5. Permissions (Mandatory before DB Setup)
+# 5. Final Permissions & Web Server
 # ----------------------------------------------------------------------
-echo ">>> Setting permissions..."
+echo ">>> Finalizing permissions..."
 chown -R root:www-data "$MOODLE_DIR" "$MOODLE_DATA"
 chmod -R 755 "$MOODLE_DIR"
 chmod -R 777 "$MOODLE_DATA"
+chmod -R 755 "$CODE_CACHE_DIR"
+chmod -R 755 "$PLUGIN_CACHE_ROOT"
+
+# Nginx Adjustment
+VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
+if [ "$VERSION_NUM" -ge 501 ]; then
+    sed -i 's|root /var/www/moodle;|root /var/www/moodle/public;|g' /etc/nginx/nginx.conf
+else
+    sed -i 's|root /var/www/moodle/public;|root /var/www/moodle;|g' /etc/nginx/nginx.conf
+fi
 
 # ----------------------------------------------------------------------
-# 6. Database Setup/Upgrade
+# 6. Database & Upgrade
 # ----------------------------------------------------------------------
-echo ">>> Waiting for Database ($DB_HOST)..."
+echo ">>> Waiting for Database..."
 until echo > /dev/tcp/$DB_HOST/$DB_PORT; do sleep 3; done 2>/dev/null || true
 
-echo ">>> Checking Database status..."
+echo ">>> Database Status..."
+# Check rápido via PHP para ver se tabelas existem
 if su -s /bin/sh www-data -c "php -r 'define(\"CLI_SCRIPT\", true); require(\"$MOODLE_DIR/config.php\"); if (\$DB->get_manager()->table_exists(\"config\")) { exit(0); } else { exit(1); }'" >/dev/null 2>&1; then
     echo ">>> Database exists. Running upgrades..."
     su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/upgrade.php --non-interactive"
 else
-    echo ">>> Database is empty. Starting fresh installation..."
-    if su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/install_database.php \
+    echo ">>> Installing Moodle..."
+    su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/install_database.php \
         --lang='$MOODLE_LANG' \
         --adminuser='${MOODLE_ADMIN_USER:-admin}' \
         --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
         --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
         --fullname='${MOODLE_SITE_FULLNAME:-Moodle Site}' \
         --shortname='${MOODLE_SITE_SHORTNAME:-Moodle}' \
-        --supportemail='${MOODLE_SUPPORT_EMAIL:-support@example.com}' \
-        --agree-license";
-    then
-        su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/cfg.php --name=noreplyaddress --set='${MOODLE_NOREPLY_EMAIL:-noreply@example.com}'"
-        echo ">>> Installation completed successfully!"
-    else
-        echo "ERROR: Installation failed!"
-        exit 1
-    fi
-fi
-
-# ----------------------------------------------------------------------
-# 7. Web Server & Maintenance
-# ----------------------------------------------------------------------
-echo ">>> Purging caches..."
-su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/purge_caches.php"
-
-# Nginx public folder adjustment for Moodle 5.1+
-VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
-if [ "$VERSION_NUM" -ge 501 ]; then
-    echo ">>> Adjusting Nginx for Moodle 5.1+ (Root: /public)..."
-    sed -i 's|root /var/www/moodle;|root /var/www/moodle/public;|g' /etc/nginx/nginx.conf
-else
-    echo ">>> Adjusting Nginx for legacy Moodle (Root: /)..."
-    sed -i 's|root /var/www/moodle/public;|root /var/www/moodle;|g' /etc/nginx/nginx.conf
+        --agree-license" || exit 1
 fi
 
 echo ">>> Starting Supervisor..."

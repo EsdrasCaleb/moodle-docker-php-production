@@ -13,7 +13,7 @@ services:
   app:
     build:
       context: .
-    #  dockerfile: DockerfileAlpine
+      #dockerfile: DockerfileAlpine
     ports:
       - "80:80"
     depends_on:
@@ -35,6 +35,8 @@ services:
       MOODLE_ADMIN_EMAIL: admin@example.com
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
+      PLUGIN_CODE_STATUS: static
+      SITE_CODE_STATUS: static
       MOODLE_PLUGINS_JSON: |
         [
           {
