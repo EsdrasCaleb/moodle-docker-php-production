@@ -32,7 +32,7 @@ echo ">>> Starting Container (Optimization Mode: $CODE_STATUS)..."
 manage_repo() {
     local path="$1"
     local repo_url="$2"
-    local target="$3" # Pode ser branch, tag ou hash de commit
+    local target="$3"
     local code_status="$4"
 
     if [ -z "$target" ]; then target="$MOODLE_VERSION"; fi
@@ -40,18 +40,18 @@ manage_repo() {
     echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 
-    # 1. Clone inicial (Mínimo para permitir checkout posterior)
+    # 1. Clone inicial
     if [ ! -d "$path/.git" ]; then
-        echo "    -> [NEW] Cloning repository..."
+        echo "    -> [NEW] Initializing and fetching..."
         mkdir -p "$path"
-        if [ -n "$(ls -A $path 2>/dev/null)" ]; then rm -rf "$path"/*; fi
+        if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then rm -rf "$path"/*; fi
 
-        git init "$path"
         cd "$path"
+        git init --quiet
         git remote add origin "$repo_url"
-        # Faz fetch apenas do que precisamos (economiza espaço)
-        git fetch --depth 1 origin "$target" || git fetch --depth 1 origin
-        git checkout "$target"
+        # O segredo: fetch direto do target e checkout do FETCH_HEAD
+        git fetch --depth 1 origin "$target"
+        git checkout -f FETCH_HEAD
         git submodule update --init --recursive --depth 1
         cd - > /dev/null
         return
@@ -63,28 +63,31 @@ manage_repo() {
 
     case "$code_status" in
         "update")
-            echo "    -> [UPDATE] Fetching latest from $target..."
+            echo "    -> [UPDATE] Fetching latest..."
             git clean -fdx
-            # Tenta fetch específico, se falhar (ex: target é commit), faz fetch geral
-            git fetch --depth 1 origin "$target" 2>/dev/null || git fetch --depth 1 origin
-            git checkout -f "$target"
-            git reset --hard FETCH_HEAD 2>/dev/null || git reset --hard "$target"
+            git fetch --depth 1 origin "$target"
+            # Checkout do que acabou de ser baixado
+            git checkout -f FETCH_HEAD
+            git reset --hard FETCH_HEAD
             git submodule update --init --recursive --depth 1
             ;;
-
         "reset")
-            echo "    -> [RESET] Offline restore to $target..."
+            echo "    -> [RESET] Restoring..."
             git clean -fdx
-            # Checkout funciona para branch ou commit já existente no histórico local
-            git checkout -f "$target"
-            git reset --hard "$target"
+            # Tenta usar o que já tem, se falhar, busca e usa o FETCH_HEAD
+            if ! git checkout -f "$target" 2>/dev/null; then
+                echo "       ! Target not found locally. Fetching..."
+                git fetch --depth 1 origin "$target"
+                git checkout -f FETCH_HEAD
+                git reset --hard FETCH_HEAD
+            else
+                git reset --hard "$target"
+            fi
             git submodule update --init --recursive --depth 1
-            ;;
-
-        "static")
-            echo "    -> [STATIC] Skipping Git operations."
             ;;
     esac
+    # Log para confirmar o que foi baixado
+    echo "    -> Current Commit: $(git rev-parse HEAD)"
     cd - > /dev/null
 }
 
