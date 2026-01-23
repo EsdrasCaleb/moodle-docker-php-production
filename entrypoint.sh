@@ -246,14 +246,21 @@ if su -s /bin/sh www-data -c "php -r 'define(\"CLI_SCRIPT\", true); require(\"$M
     su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/upgrade.php --non-interactive"
 else
     echo ">>> Installing Moodle..."
-    su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/install_database.php \
-        --lang='$MOODLE_LANG' \
-        --adminuser='${MOODLE_ADMIN_USER:-admin}' \
-        --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
-        --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
-        --fullname='${MOODLE_SITE_FULLNAME:-Moodle Site}' \
-        --shortname='${MOODLE_SITE_SHORTNAME:-Moodle}' \
-        --agree-license" || exit 1
+    if su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/install_database.php \
+            --lang='$MOODLE_LANG' \
+            --adminuser='${MOODLE_ADMIN_USER:-admin}' \
+            --adminpass='${MOODLE_ADMIN_PASS:-MoodleAdmin123!}' \
+            --adminemail='${MOODLE_ADMIN_EMAIL:-admin@example.com}' \
+            --fullname='${MOODLE_SITE_FULLNAME:-Moodle Site}' \
+            --shortname='${MOODLE_SITE_SHORTNAME:-Moodle}' \
+            --supportemail='${MOODLE_SUPPORT_EMAIL:-support@example.com}' \
+            --agree-license";
+      then
+          su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/cfg.php --name=noreplyaddress --set='${MOODLE_NOREPLY_EMAIL:-noreply@example.com}'"
+          echo ">>> Installation completed successfully!"
+      else
+          echo "ERROR: Installation failed!"
+          exit 1
 fi
 
 echo ">>> Starting Supervisor..."
