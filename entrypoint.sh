@@ -214,7 +214,7 @@ chown -R root:www-data "$MOODLE_DIR" "$MOODLE_DATA"
 chmod -R 755 "$MOODLE_DIR"
 chmod -R 777 "$MOODLE_DATA"
 chmod -R 755 "$CODE_CACHE_DIR"
-chmod -R 755 "$PLUGIN_CACHE_ROOT"
+[ -d "$PLUGIN_CACHE_ROOT" ] && chmod -R 755 "$PLUGIN_CACHE_ROOT"
 
 # Nginx Adjustment
 VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
