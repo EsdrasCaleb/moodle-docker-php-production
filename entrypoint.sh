@@ -25,6 +25,246 @@ set -e
 : "${PHP_MAX_EXECUTION_TIME:=600}"
 : "${PHP_MAX_INPUT_VARS:=5000}"
 
+# Nginx Adjustment
+
+# Moodle 5.1+ requer /public, versões anteriores usam a raiz
+VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
+if [ "$VERSION_NUM" -ge 501 ]; then
+    NGINX_WEB_ROOT="/var/www/moodle/public"
+else
+    NGINX_WEB_ROOT="/var/www/moodle"
+fi
+echo "    -> Nginx Root configured to: $NGINX_WEB_ROOT"
+
+# --- Auto-Correction: Upload vs Post ---
+# Função auxiliar para converter strings (1G, 500M) em bytes numéricos para comparação
+get_bytes() {
+    local val=$1
+    # Awk detecta a letra, multiplica e retorna o inteiro
+    echo "$val" | awk '
+        /G/ {printf "%.0f", $1 * 1024 * 1024 * 1024; exit}
+        /M/ {printf "%.0f", $1 * 1024 * 1024; exit}
+        /K/ {printf "%.0f", $1 * 1024; exit}
+        {print $1}
+    '
+}
+
+BYTES_UPLOAD=$(get_bytes "$PHP_UPLOAD_MAX_FILESIZE")
+BYTES_POST=$(get_bytes "$PHP_POST_MAX_SIZE")
+
+if [ "$BYTES_UPLOAD" -gt "$BYTES_POST" ]; then
+    echo ">>> WARNING: PHP_UPLOAD_MAX_FILESIZE ($PHP_UPLOAD_MAX_FILESIZE) is larger than PHP_POST_MAX_SIZE ($PHP_POST_MAX_SIZE)."
+    echo "    -> Auto-fixing: Setting PHP_POST_MAX_SIZE to match Upload Size."
+    PHP_POST_MAX_SIZE="$PHP_UPLOAD_MAX_FILESIZE"
+fi
+
+# ----------------------------------------------------------------------
+# 0. SERVER Configuration
+# ----------------------------------------------------------------------
+# Variável Mágica: Porcentagem de RAM para usar (Padrão 75%)
+# Se for maquina dedicada, use 90. Se for dividida, use 50.
+: "${SERVER_MEMORY_USAGE_PERCENT:=75}"
+: "${NGINX_GZIP_LEVEL:=6}"  # Padrão 6 (Equilíbrio). Use 1 para performance máxima de CPU.
+
+# --- 0.1. Cálculos Automáticos (Auto-Tuning) ---
+
+echo ">>> Auto-Tuning PHP & Nginx..."
+
+# Detecta Memória Total em MB
+TOTAL_RAM_MB=$(grep MemTotal /proc/meminfo | awk '{print int($2/1024)}')
+echo "    Total RAM detected: ${TOTAL_RAM_MB}MB"
+
+# Calcula memória alvo
+TARGET_RAM_MB=$(awk "BEGIN {print int($TOTAL_RAM_MB * $SERVER_MEMORY_USAGE_PERCENT / 100)}")
+echo "    Target RAM (${SERVER_MEMORY_USAGE_PERCENT}%): ${TARGET_RAM_MB}MB"
+
+# Cálculos do PHP-FPM
+# Assumimos ~100MB por processo médio do Moodle
+PM_MAX_CHILDREN=$(awk "BEGIN {print int($TARGET_RAM_MB / 100)}")
+# Segurança mínima
+if [ "$PM_MAX_CHILDREN" -lt 5 ]; then PM_MAX_CHILDREN=5; fi
+
+PM_START_SERVERS=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.25)}")
+PM_MIN_SPARE=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.20)}")
+PM_MAX_SPARE=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.50)}")
+
+# Cálculos de Cache (APCu e OPCache)
+# Aloca ~5% da RAM alvo para cada cache (ajuste fino)
+CACHE_SIZE=$(awk "BEGIN {print int($TARGET_RAM_MB * 0.05)}")
+if [ "$CACHE_SIZE" -lt 128 ]; then CACHE_SIZE=128; fi
+# Teto para não exagerar em máquinas gigantes
+if [ "$CACHE_SIZE" -gt 512 ]; then CACHE_SIZE=512; fi
+
+echo "    Calculated settings:"
+echo "    -> pm.max_children = $PM_MAX_CHILDREN"
+echo "    -> Cache Size (APCu/OPCache) = ${CACHE_SIZE}M"
+
+# ---  Geração de Arquivos de Configuração ---
+
+#  PHP-FPM Pool (Sobrescreve se AUTO_TUNE=true ou se não existir)
+echo "    -> Generating php-fpm pool config..."
+rm -f /usr/local/etc/php-fpm.d/www.conf /usr/local/etc/php-fpm.d/zz-docker.conf
+
+    cat <<EOF > /usr/local/etc/php-fpm.d/zz-docker.conf
+[global]
+daemonize = no
+
+[www]
+user = www-data
+group = www-data
+
+pm = dynamic
+pm.max_children = $PM_MAX_CHILDREN
+pm.start_servers = $PM_START_SERVERS
+pm.min_spare_servers = $PM_MIN_SPARE
+pm.max_spare_servers = $PM_MAX_SPARE
+pm.max_requests = 1000
+
+catch_workers_output = yes
+decorate_workers_output = no
+EOF
+
+#  OPCache
+cat <<EOF > /usr/local/etc/php/conf.d/10-opcache-tuning.ini
+opcache.enable=1
+opcache.memory_consumption=${CACHE_SIZE}
+opcache.interned_strings_buffer=16
+opcache.max_accelerated_files=50000
+opcache.revalidate_freq=60
+opcache.validate_timestamps=1
+opcache.enable_cli=1
+EOF
+
+
+#  APCu
+
+cat <<EOF > /usr/local/etc/php/conf.d/20-apcu-tuning.ini
+apc.enabled=1
+apc.shm_size=${CACHE_SIZE}M
+apc.ttl=7200
+apc.enable_cli=1
+EOF
+
+#  Configuração Geral PHP (Uploads/Memory)
+echo "    -> Generating General PHP config..."
+cat <<EOF > /usr/local/etc/php/conf.d/00-general.ini
+memory_limit = ${PHP_MEMORY_LIMIT}
+upload_max_filesize = ${PHP_UPLOAD_MAX_FILESIZE}
+post_max_size = ${PHP_POST_MAX_SIZE}
+max_execution_time = ${PHP_MAX_EXECUTION_TIME}
+max_input_vars = ${PHP_MAX_INPUT_VARS}
+date.timezone = America/Sao_Paulo
+EOF
+
+
+# Nginx Config
+echo "    -> Generating Nginx config..."
+cat <<EOF > /etc/nginx/nginx.conf
+user www-data;
+worker_processes auto;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 2048;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /dev/stdout;
+    error_log /dev/stderr;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout ${PHP_MAX_EXECUTION_TIME};
+    client_body_timeout ${PHP_MAX_EXECUTION_TIME};
+    client_header_timeout ${PHP_MAX_EXECUTION_TIME};
+    fastcgi_read_timeout ${PHP_MAX_EXECUTION_TIME};
+    types_hash_max_size 2048;
+
+    # Upload limits from ENV
+    client_max_body_size ${PHP_UPLOAD_MAX_FILESIZE};
+
+    # Gzip
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level ${NGINX_GZIP_LEVEL}; # Mais compressão, usa um pouco mais de CPU (ok na sua máquina dedicada)
+    gzip_min_length 256;
+    gzip_types
+        text/plain
+        text/css
+        text/javascript
+        application/javascript
+        application/json
+        application/x-javascript
+        application/xml
+        application/xml+rss
+        image/svg+xml
+        image/x-icon
+        font/ttf
+        font/opentype;
+
+    # Logs
+    access_log /var/log/nginx/access.log;
+
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name _;
+        root ${NGINX_WEB_ROOT};
+        index index.php index.html;
+
+        location / {
+            try_files \$uri \$uri/ /index.php?\$query_string;
+        }
+
+        location ~ (/\.git|/\.env|/vendor/|/node_modules/|composer\.json|/readme|/README|/LICENSE|/COPYING|/tests/|/classes/|/cli/|/\.) {
+            deny all;
+            return 404;
+        }
+
+        location ~ [^/]\.php(/|$) {
+            fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+
+            if (!-f \$document_root\$fastcgi_script_name) {
+                return 404;
+            }
+
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+            fastcgi_param PATH_INFO \$fastcgi_path_info;
+
+            # BUFFERS CRUCIAIS PARA O MOODLE (Headers Grandes)
+            fastcgi_buffers 16 16k;
+            fastcgi_buffer_size 32k;
+
+            # Timeout longo para scripts de instalação/backup
+            fastcgi_read_timeout ${PHP_MAX_EXECUTION_TIME};
+        }
+
+        location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
+            expires 365d;
+            add_header Cache-Control "public, no-transform";
+            try_files \$uri \$uri/ /index.php?\$query_string;
+        }
+
+
+        # Bloqueio de segurança padrão do Moodle
+        location ~ (/vendor/|/node_modules/|composer\.json|/readme|/README|/LICENSE|/COPYING|/tests/|/classes/|/cli/) {
+            deny all;
+            return 404;
+        }
+    }
+}
+EOF
+
+
 echo ">>> Starting Container (Optimization Mode: $CODE_STATUS)..."
 # ----------------------------------------------------------------------
 # Helper Function: Manage Git Repositories
@@ -113,19 +353,6 @@ manage_repo() {
 }
 
 # ----------------------------------------------------------------------
-# 0. PHP Configuration
-# ----------------------------------------------------------------------
-echo ">>> Applying PHP configurations..."
-{
-    echo "file_uploads = On"
-    echo "memory_limit = ${PHP_MEMORY_LIMIT}"
-    echo "upload_max_filesize = ${PHP_UPLOAD_MAX_FILESIZE}"
-    echo "post_max_size = ${PHP_POST_MAX_SIZE}"
-    echo "max_execution_time = ${PHP_MAX_EXECUTION_TIME}"
-    echo "max_input_vars = ${PHP_MAX_INPUT_VARS}"
-} > /usr/local/etc/php/conf.d/moodle-overrides.ini
-
-# ----------------------------------------------------------------------
 # 1. Git Optimizations
 # ----------------------------------------------------------------------
 git config --global http.postBuffer 524288000
@@ -162,8 +389,8 @@ cat <<'EOF' > "$MOODLE_DIR/config.php"
 <?php
 unset($CFG);
 global $CFG;
-$CFG = new stdClass();
 
+$CFG = new stdClass();
 $CFG->dbtype    = getenv('DB_TYPE') ?: 'pgsql';
 $CFG->dblibrary = 'native';
 $CFG->dbhost    = getenv('DB_HOST') ?: 'localhost';
@@ -249,13 +476,6 @@ chmod -R 777 "$MOODLE_DATA"
 chmod -R 755 "$CODE_CACHE_DIR"
 [ -d "$PLUGIN_CACHE_ROOT" ] && chmod -R 755 "$PLUGIN_CACHE_ROOT"
 
-# Nginx Adjustment
-VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
-if [ "$VERSION_NUM" -ge 501 ]; then
-    sed -i 's|root /var/www/moodle;|root /var/www/moodle/public;|g' /etc/nginx/nginx.conf
-else
-    sed -i 's|root /var/www/moodle/public;|root /var/www/moodle;|g' /etc/nginx/nginx.conf
-fi
 
 # ----------------------------------------------------------------------
 # 6. Database & Upgrade

@@ -34,10 +34,6 @@ RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \
     && chown -R www-data:www-data $MOODLE_DATA \
     && chmod 770 $MOODLE_DATA
 
-COPY php/opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
-COPY php/apcu.ini /usr/local/etc/php/conf.d/20-apcu.ini
-COPY php/fpm-pool.conf /usr/local/etc/php-fpm.d/zz-docker.conf
-COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY plugins.json* /usr/local/bin/default_plugins.json
