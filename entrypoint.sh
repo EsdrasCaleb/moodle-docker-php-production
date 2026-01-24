@@ -24,6 +24,10 @@ set -e
 : "${PHP_POST_MAX_SIZE:=100M}"
 : "${PHP_MAX_EXECUTION_TIME:=600}"
 : "${PHP_MAX_INPUT_VARS:=5000}"
+: "${OPCAHE_STRINGS_BUFFER:=64}"
+: "${OPCACHE_MAX_FILES:=50000}"
+: "${FASTCGI_BUFFER:=128}"
+
 
 # Nginx Adjustment
 
@@ -149,10 +153,10 @@ EOF
 cat <<EOF > /usr/local/etc/php/conf.d/10-opcache-tuning.ini
 opcache.enable=1
 opcache.memory_consumption=${CACHE_SIZE}
-opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=50000
-opcache.revalidate_freq=60
-opcache.validate_timestamps=1
+opcache.interned_strings_buffer=${OPCAHE_STRINGS_BUFFER}
+opcache.max_accelerated_files=${OPCACHE_MAX_FILES}
+opcache.revalidate_freq=0
+opcache.validate_timestamps=0
 opcache.enable_cli=1
 EOF
 
@@ -177,7 +181,7 @@ max_input_vars = ${PHP_MAX_INPUT_VARS}
 date.timezone = America/Sao_Paulo
 EOF
 
-
+MAX_BUFFER_SIZE=$(awk "BEGIN {print int($FASTCGI_BUFFER * 2)}")
 # Nginx Config
 echo "    -> Generating Nginx config..."
 cat <<EOF > /etc/nginx/nginx.conf
@@ -262,8 +266,9 @@ http {
             fastcgi_param PATH_INFO \$fastcgi_path_info;
 
             # BUFFERS CRUCIAIS PARA O MOODLE (Headers Grandes)
-            fastcgi_buffers 16 16k;
-            fastcgi_buffer_size 32k;
+            fastcgi_buffers 4 ${MAX_BUFFER_SIZE}k;
+            fastcgi_buffer_size ${FASTCGI_BUFFER}k;
+            fastcgi_busy_buffers_size ${MAX_BUFFER_SIZE}k;
 
             # Timeout longo para scripts de instalação/backup
             fastcgi_read_timeout ${PHP_MAX_EXECUTION_TIME};
