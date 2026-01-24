@@ -40,16 +40,16 @@ manage_repo() {
     echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 
-    # 1. Clone inicial
+    # 1. Clone inicial (se não existir, não tem lock pra limpar ainda)
     if [ ! -d "$path/.git" ]; then
         echo "    -> [NEW] Initializing and fetching..."
         mkdir -p "$path"
+        # Limpa diretório se não estiver vazio (mas sem .git)
         if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then rm -rf "$path"/*; fi
 
         cd "$path"
         git init --quiet
         git remote add origin "$repo_url"
-        # O segredo: fetch direto do target e checkout do FETCH_HEAD
         git fetch --depth 1 origin "$target"
         git checkout -f FETCH_HEAD
         git submodule update --init --recursive --depth 1
@@ -57,16 +57,38 @@ manage_repo() {
         return
     fi
 
+    # Entra no diretório existente
     cd "$path"
+
+    # --- CORREÇÃO AQUI ---
+    # Remove travas estagnadas antes de qualquer operação
+    if [ -d ".git" ]; then
+        # Remove locks comuns que impedem o git de rodar
+        rm -f .git/index.lock \
+              .git/HEAD.lock \
+              .git/shallow.lock \
+              .git/config.lock \
+              .git/refs/heads/*.lock \
+              .git/refs/remotes/origin/*.lock
+
+        # Opcional: Se for muito crítico, remove locks de submodules também
+        find . -name "*.lock" -type f -path "*/.git/*" -delete 2>/dev/null
+    fi
+    # ---------------------
+
     git config --global --add safe.directory "$path"
-    git remote set-url origin "$repo_url"
+
+    # Verifica se a URL mudou (útil se você mudou o repo no env)
+    local current_url=$(git remote get-url origin 2>/dev/null)
+    if [ "$current_url" != "$repo_url" ]; then
+         git remote set-url origin "$repo_url"
+    fi
 
     case "$code_status" in
         "update")
             echo "    -> [UPDATE] Fetching latest..."
             git clean -fdx
             git fetch --depth 1 origin "$target"
-            # Checkout do que acabou de ser baixado
             git checkout -f FETCH_HEAD
             git reset --hard FETCH_HEAD
             git submodule update --init --recursive --depth 1
@@ -74,7 +96,6 @@ manage_repo() {
         "reset")
             echo "    -> [RESET] Restoring..."
             git clean -fdx
-            # Tenta usar o que já tem, se falhar, busca e usa o FETCH_HEAD
             if ! git checkout -f "$target" 2>/dev/null; then
                 echo "       ! Target not found locally. Fetching..."
                 git fetch --depth 1 origin "$target"
@@ -86,7 +107,7 @@ manage_repo() {
             git submodule update --init --recursive --depth 1
             ;;
     esac
-    # Log para confirmar o que foi baixado
+
     echo "    -> Current Commit: $(git rev-parse HEAD)"
     cd - > /dev/null
 }
