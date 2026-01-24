@@ -32,7 +32,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # 3. Estrutura e Arquivos
 RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \
     && chown -R www-data:www-data $MOODLE_DATA \
-    && chmod 770 $MOODLE_DATA
+    && chmod 777 $MOODLE_DATA
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

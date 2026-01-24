@@ -28,15 +28,15 @@ services:
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
-      MOODLE_VERSION: MOODLE_405_STABLE
+      MOODLE_VERSION: MOODLE_501_STABLE
       MOODLE_LANG: pt_br
       MOODLE_ADMIN_USER: admin
       MOODLE_ADMIN_PASS: MoodleAdmin123!
       MOODLE_ADMIN_EMAIL: admin@example.com
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
-      PLUGIN_CODE_STATUS: static
-      SITE_CODE_STATUS: static
+      PLUGIN_CODE_STATUS: update
+      SITE_CODE_STATUS: update
       MOODLE_PLUGINS_JSON: |
         [
           {

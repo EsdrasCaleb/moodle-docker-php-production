@@ -2,7 +2,7 @@
 
 Repository responsible for building the customized Moodle Docker image for production use (CapRover, Kubernetes, etc.)
 
-Docker Hub: https://hub.docker.com/repository/docker/esdrascaleb/moodle-docker-php-production/general
+Docker Hub: https://hub.docker.com/r/esdrascaleb/moodle-docker-php-production
 
 A robust, self-contained, and **immutable** Moodle Docker image designed for production environments like **CapRover**, Docker Swarm, and Kubernetes.
 
