@@ -54,16 +54,17 @@ These variables are used **when starting the container**. Changing them affects 
 | `PHP_MAX_INPUT_VARS`          | Maximum number of input variables (increase for large forms/gradebooks).                                                                                                                                                                  | No (Default: `5000`)                                 |
 | `SERVER_MEMORY_USAGE_PERCENT` | Percentage of the container’s total RAM used to automatically calculate PHP workers and cache sizes (OPCache/APCu). Recommended: 85–90% for dedicated servers and 50–60% when other resource-intensive services run on the same node.     | No (Default: `75`)                                   |
 | `NGINX_GZIP_LEVEL`            | Gzip compression level (1–9). Level 1 is fastest (lower CPU usage), level 9 provides maximum compression (higher CPU usage). Level 6 is recommended for a balanced trade-off.                                                             | No (Default: `6`)                                    |
-| `SITE_CODE_STATUS`            | See below                                                                                                                                                                                                                                 | `reset`                                              |
-| `PLUGIN_CODE_STATUS`          | See below                                                                                                                                                                                                                                 | `update`                                             |
+| `SITE_CODE_STATUS`            | See below                                                                                                                                                                                                                                 | No (Default: `reset`)                                |
+| `PLUGIN_CODE_STATUS`          | See below                                                                                                                                                                                                                                 | No (Default:`reset`)                                |
 
 Code status Controls how Git handles updates:
 - **static:** Does nothing if the folder already exists. Faster boot. 
 - **reset:** Forces a `git reset --hard` (overwrites local changes and mantain the first download version). 
-- **update:** Downloads the latest version and performs a `git pull` (attempts to keep local changes). 
+- **update:** Downloads the latest version and performs a `git pull` (overwrites local changes and download the first download version).
 
 Reset and update cleans up untracked files (`git clean -fdx`).
 
+In order to install new plugins use MOODLE_PLUGINS_JSON
 
 
 
