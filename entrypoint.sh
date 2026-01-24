@@ -74,19 +74,43 @@ echo ">>> Auto-Tuning PHP & Nginx..."
 TOTAL_RAM_MB=$(grep MemTotal /proc/meminfo | awk '{print int($2/1024)}')
 echo "    Total RAM detected: ${TOTAL_RAM_MB}MB"
 
-# Calcula memória alvo
 TARGET_RAM_MB=$(awk "BEGIN {print int($TOTAL_RAM_MB * $SERVER_MEMORY_USAGE_PERCENT / 100)}")
 echo "    Target RAM (${SERVER_MEMORY_USAGE_PERCENT}%): ${TARGET_RAM_MB}MB"
+# Calcula memória alvo
+ PM_MAX_CHILDREN=$(awk "BEGIN {print int($TARGET_RAM_MB / 100)}")
 
-# Cálculos do PHP-FPM
-# Assumimos ~100MB por processo médio do Moodle
-PM_MAX_CHILDREN=$(awk "BEGIN {print int($TARGET_RAM_MB / 100)}")
 # Segurança mínima
+
 if [ "$PM_MAX_CHILDREN" -lt 5 ]; then PM_MAX_CHILDREN=5; fi
 
+
 PM_START_SERVERS=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.25)}")
+
+if [ "$PM_START_SERVERS" -lt 2 ]; then PM_START_SERVERS=2; fi
+
 PM_MIN_SPARE=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.20)}")
+
+if [ "$PM_MIN_SPARE" -lt 2 ]; then PM_MIN_SPARE=1; fi
+
 PM_MAX_SPARE=$(awk "BEGIN {print int($PM_MAX_CHILDREN * 0.50)}")
+
+if [ "$PM_MAX_SPARE" -lt 3 ]; then PM_MAX_SPARE=3; fi
+
+# Garante que Max Spare seja pelomenos maior ao Start Servers
+if [ "$PM_MAX_SPARE" -lt "$PM_START_SERVERS" ]; then
+    PM_MAX_SPARE=$(( PM_START_SERVERS + 1 ))
+fi
+
+# Garante que Max Children seja maior que Max Spare (para não travar)
+if [ "$PM_MAX_CHILDREN" -lt "$PM_MAX_SPARE" ]; then
+    PM_MAX_CHILDREN=$(( PM_MAX_SPARE + 1 ))
+fi
+
+if [ "$TARGET_RAM_MB" -le 2048 ]; then
+    PM_MAX_REQUESTS=500
+else
+    PM_MAX_REQUESTS=1000
+fi
 
 # Cálculos de Cache (APCu e OPCache)
 # Aloca ~5% da RAM alvo para cada cache (ajuste fino)
@@ -103,22 +127,19 @@ echo "    -> Cache Size (APCu/OPCache) = ${CACHE_SIZE}M"
 
 #  PHP-FPM Pool (Sobrescreve se AUTO_TUNE=true ou se não existir)
 echo "    -> Generating php-fpm pool config..."
-rm -f /usr/local/etc/php-fpm.d/www.conf /usr/local/etc/php-fpm.d/zz-docker.conf
+#rm -f /usr/local/etc/php-fpm.d/www.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 
     cat <<EOF > /usr/local/etc/php-fpm.d/zz-docker.conf
 [global]
 daemonize = no
 
 [www]
-user = www-data
-group = www-data
-
 pm = dynamic
 pm.max_children = $PM_MAX_CHILDREN
 pm.start_servers = $PM_START_SERVERS
 pm.min_spare_servers = $PM_MIN_SPARE
 pm.max_spare_servers = $PM_MAX_SPARE
-pm.max_requests = 1000
+pm.max_requests = $PM_MAX_REQUESTS
 
 catch_workers_output = yes
 decorate_workers_output = no

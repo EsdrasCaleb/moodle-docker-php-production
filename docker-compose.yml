@@ -28,7 +28,7 @@ services:
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
-      MOODLE_VERSION: MOODLE_501_STABLE
+      MOODLE_VERSION: MOODLE_405_STABLE
       MOODLE_LANG: pt_br
       MOODLE_ADMIN_USER: admin
       MOODLE_ADMIN_PASS: MoodleAdmin123!
@@ -37,6 +37,7 @@ services:
       PHP_MAX_EXECUTION_TIME: 600
       PLUGIN_CODE_STATUS: update
       SITE_CODE_STATUS: update
+      SERVER_MEMORY_USAGE_PERCENT: 20
       MOODLE_PLUGINS_JSON: |
         [
           {
