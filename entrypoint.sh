@@ -264,6 +264,7 @@ else
       else
           echo "ERROR: Installation failed!"
           exit 1
+      fi
 fi
 
 echo ">>> Starting Supervisor..."

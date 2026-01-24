@@ -27,25 +27,16 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && pecl install redis sqlsrv pdo_sqlsrv apcu \
     && docker-php-ext-enable redis sqlsrv pdo_sqlsrv apcu
 
-# 3. Configurações Estáticas (Opcache e APCu base)
-RUN { \
-        echo 'opcache.memory_consumption=256'; \
-        echo 'opcache.interned_strings_buffer=16'; \
-        echo 'opcache.max_accelerated_files=20000'; \
-        echo 'opcache.revalidate_freq=60'; \
-        echo 'opcache.enable_cli=1'; \
-        echo 'opcache.jit=tracing'; \
-        echo 'opcache.jit_buffer_size=100M'; \
-        echo 'apc.enabled=1'; \
-        echo 'apc.shm_size=128M'; \
-        echo 'apc.enable_cli=1'; \
-    } > /usr/local/etc/php/conf.d/moodle-performance.ini
 
-# 4. Estrutura e Arquivos
+
+# 3. Estrutura e Arquivos
 RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \
     && chown -R www-data:www-data $MOODLE_DATA \
-    && chmod 777 $MOODLE_DATA
+    && chmod 770 $MOODLE_DATA
 
+COPY php/opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
+COPY php/apcu.ini /usr/local/etc/php/conf.d/20-apcu.ini
+COPY php/fpm-pool.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

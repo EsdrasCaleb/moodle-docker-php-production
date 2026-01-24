@@ -13,7 +13,7 @@ services:
   app:
     build:
       context: .
-      #dockerfile: DockerfileAlpine
+      dockerfile: DockerfileAlpine
     ports:
       - "80:80"
     depends_on:
