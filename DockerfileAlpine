@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     bash nginx supervisor git coreutils jq \
     libpng libjpeg-turbo freetype libzip \
     icu-libs libxml2 libpq oniguruma \
-    libxslt libsodium zlib openssl \
+    libxslt libsodium zlib openssl libmemcached-libs \
     graphviz aspell ghostscript poppler-utils
 
 # 2. Instalação de Extensões e Build (Tudo em um único RUN para manter a imagem limpa)
