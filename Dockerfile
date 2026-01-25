@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 curl ca-certificates lsb-release nginx supervisor git jq \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev \
     libicu-dev libxml2-dev libpq-dev libonig-dev libxslt1-dev \
-    libsodium-dev unixodbc-dev zlib1g-dev libssl-dev \
+    libsodium-dev unixodbc-dev zlib1g-dev libssl-dev libmemcached-dev  \
     graphviz aspell ghostscript poppler-utils \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-archive-keyring.gpg \
     && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 2. Instalação de Extensões PHP (Nativas + PECL incluindo APCu)
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl libmemcached-dev  sodium \
+        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
     && pecl install redis sqlsrv pdo_sqlsrv memcached apcu \
     && docker-php-ext-enable redis sqlsrv pdo_sqlsrv memcached apcu
 
