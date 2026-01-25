@@ -24,8 +24,8 @@ RUN apk add --no-cache --virtual .build-deps \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
-    && pecl install apcu redis \
-    && docker-php-ext-enable apcu redis \
+    && pecl install apcu redis memcached \
+    && docker-php-ext-enable apcu redis memcached \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
