@@ -27,6 +27,8 @@ set -e
 : "${OPCAHE_STRINGS_BUFFER:=16}"
 : "${OPCACHE_MAX_FILES:=20000}"
 : "${FASTCGI_BUFFER:=64}"
+: "${DB_MAX_CONECTIONS:=200}"
+: "${DB_PERSIST:=0}"
 
 
 # Nginx Adjustment
@@ -168,6 +170,25 @@ apc.enabled=1
 apc.shm_size=${CACHE_SIZE}M
 apc.ttl=7200
 apc.enable_cli=1
+EOF
+
+# Database Tuning (Postgres & MySQL)
+cat <<EOF > /usr/local/etc/php/conf.d/20-database-tuning.ini
+; --- PostgreSQL Tuning ---
+[PostgreSQL]
+pgsql.allow_persistent = On
+
+pgsql.auto_reset_persistent = On
+
+pgsql.max_persistent = ${DB_MAX_CONECTIONS}
+pgsql.max_links = ${DB_MAX_CONECTIONS}
+
+; --- MySQL/MariaDB Tuning
+[MySQLi]
+mysqli.allow_persistent = On
+mysqli.max_persistent = ${DB_MAX_CONECTIONS}
+mysqli.max_links = ${DB_MAX_CONECTIONS}
+mysqli.reconnect = On
 EOF
 
 #  Configuração Geral PHP (Uploads/Memory)
@@ -426,14 +447,14 @@ $CFG->dbpass    = getenv('DB_PASS') ?: '';
 $CFG->prefix    = getenv('DB_PREFIX') ?: 'mdl_';
 $CFG->dboptions = array (
   'dbport' => getenv('DB_PORT') ?: '',
-  'dbpersist' => 0,
-  'dbscent' => 0,
+  'dbpersist' => (bool) getenv('DB_PERSIST') ?: false,
 );
 
 $CFG->wwwroot   = getenv('MOODLE_URL');
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
 $CFG->directorypermissions = 0777;
+$CFG->preventfilelocking = true;
 EOF
 
 if [ ! -z "$MOODLE_EXTRA_PHP" ]; then echo "$MOODLE_EXTRA_PHP" >> "$MOODLE_DIR/config.php"; fi
