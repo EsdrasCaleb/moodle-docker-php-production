@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 2. Instalação de Extensões PHP (Nativas + PECL incluindo APCu)
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
+        gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl libmemcached-dev  sodium \
     && pecl install redis sqlsrv pdo_sqlsrv memcached apcu \
     && docker-php-ext-enable redis sqlsrv pdo_sqlsrv memcached apcu
 
