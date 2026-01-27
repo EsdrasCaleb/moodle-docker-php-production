@@ -30,6 +30,8 @@ services:
       DB_TYPE: pgsql
       DB_NAME: moodle
       DB_USER: moodle
+      DB_USER_CRON: moodle
+      DB_PASS_CRON: password
       DB_PASS: password
 
       MOODLE_VERSION: MOODLE_405_STABLE

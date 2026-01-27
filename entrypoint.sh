@@ -442,6 +442,7 @@ $CFG->dbtype    = getenv('DB_TYPE') ?: 'pgsql';
 $CFG->dblibrary = 'native';
 $CFG->dbhost    = getenv('DB_HOST') ?: 'localhost';
 $CFG->dbname    = getenv('DB_NAME') ?: 'moodle';
+$CFG->prefix    = getenv('DB_PREFIX') ?: 'mdl_';
 if (defined('CLI_SCRIPT') && CLI_SCRIPT && getenv('DB_USER_CRON')&&getenv('DB_PASS_CRON')) {
     // Configuração para o CRON (Processos de fundo)
     $CFG->dbuser = getenv('DB_USER_CRON');
@@ -450,7 +451,6 @@ if (defined('CLI_SCRIPT') && CLI_SCRIPT && getenv('DB_USER_CRON')&&getenv('DB_PA
 } else {
     $CFG->dbuser    = getenv('DB_USER') ?: 'moodle';
     $CFG->dbpass    = getenv('DB_PASS') ?: '';
-    $CFG->prefix    = getenv('DB_PREFIX') ?: 'mdl_';
 }
 
 $CFG->dboptions = array (
