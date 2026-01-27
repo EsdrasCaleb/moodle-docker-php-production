@@ -8,13 +8,13 @@ ENV MOODLE_DATA="/var/www/moodledata"
 
 # 1. Dependências de Execução (Ficam na imagem final)
 # libmemcached-libs: Necessária para o PHP rodar o memcached
-# libsasl: Necessária porque o memcached usa autenticação SASL internamente
 RUN apk add --no-cache \
-    bash nginx supervisor jq \
+    bash nginx supervisor git coreutils jq \
     libpng libjpeg-turbo freetype libzip \
     icu-libs libxml2 libpq oniguruma \
     libxslt libsodium zlib openssl \
-    libmemcached-libs libsasl
+    graphviz aspell ghostscript poppler-utils \
+    libevent-dev libmemcached-libs
 
 # 2. Build das Extensões (Instala > Compila > Remove Lixo)
 RUN apk add --no-cache --virtual .build-deps \
@@ -22,20 +22,14 @@ RUN apk add --no-cache --virtual .build-deps \
     libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
     icu-dev libxml2-dev postgresql-dev oniguruma-dev \
     libxslt-dev libsodium-dev zlib-dev \
-    libmemcached-dev cyrus-sasl-dev \
-    \
+    libmemcached-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
-    \
-    # O PECL compila o memcached usando o libmemcached-dev
     && pecl install apcu redis memcached \
     && docker-php-ext-enable apcu redis memcached \
-    \
-    # AQUI ESTÁ A MÁGICA: Removemos todo o peso do .build-deps
     && apk del .build-deps \
     && rm -rf /tmp/pear
-
 
 # 3. Estrutura de pastas e arquivos
 RUN mkdir -p $MOODLE_DATA /var/log/supervisor $MOODLE_DIR \

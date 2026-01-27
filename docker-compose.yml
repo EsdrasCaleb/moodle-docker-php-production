@@ -1,5 +1,4 @@
 services:
-  # Banco de Dados Local
   db:
     image: postgres:18.1
     environment:
@@ -9,7 +8,12 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/18/docker
 
-  # Sua Imagem (Build Local)
+  memcached:
+    image: memcached:1.6-alpine
+    command: memcached
+    ports:
+      - "11211:11211"
+
   app:
     build:
       context: .
@@ -18,26 +22,30 @@ services:
       - "80:80"
     depends_on:
       - db
+      - memcached
     environment:
-      # URL deve bater com a porta mapeada acima
       MOODLE_URL: http://localhost
 
-      # Conexão com o banco (nome do serviço acima é 'db')
       DB_HOST: db
       DB_TYPE: pgsql
       DB_NAME: moodle
       DB_USER: moodle
       DB_PASS: password
+
       MOODLE_VERSION: MOODLE_405_STABLE
       MOODLE_LANG: pt_br
+
       MOODLE_ADMIN_USER: admin
       MOODLE_ADMIN_PASS: MoodleAdmin123!
       MOODLE_ADMIN_EMAIL: admin@example.com
+
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
+
       PLUGIN_CODE_STATUS: update
       SITE_CODE_STATUS: update
       SERVER_MEMORY_USAGE_PERCENT: 20
+
       MOODLE_PLUGINS_JSON: |
         [
           {
@@ -51,10 +59,21 @@ services:
             "installpath": "mod/checklist"
           }
         ]
-      # Opções de Debug para ver erros na tela durante teste
-      MOODLE_EXTRA_PHP: "$$CFG->debug = 32767; $$CFG->debugdisplay = 1;"
+
+      # 🔥 MEMCACHED + SESSION HANDLER
+      MOODLE_EXTRA_PHP: |
+        $$CFG->debug = 32767;
+        $$CFG->debugdisplay = 1;
+
+        $$CFG->session_handler_class = '\core\session\memcached';
+        $$CFG->session_memcached_save_path = 'memcached:11211';
+        $$CFG->session_memcached_prefix = 'moodle_';
+        $$CFG->session_memcached_acquire_lock_timeout = 120;
+        $$CFG->session_memcached_lock_expire = 7200;
+
+        $$CFG->cachestore_memcached_servers = 'memcached:11211';
+
     volumes:
-      # Persistência do moodledata localmente
       - moodle_data:/var/www/moodledata
     dns:
       - 8.8.8.8
