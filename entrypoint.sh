@@ -442,9 +442,17 @@ $CFG->dbtype    = getenv('DB_TYPE') ?: 'pgsql';
 $CFG->dblibrary = 'native';
 $CFG->dbhost    = getenv('DB_HOST') ?: 'localhost';
 $CFG->dbname    = getenv('DB_NAME') ?: 'moodle';
-$CFG->dbuser    = getenv('DB_USER') ?: 'moodle';
-$CFG->dbpass    = getenv('DB_PASS') ?: '';
-$CFG->prefix    = getenv('DB_PREFIX') ?: 'mdl_';
+if (defined('CLI_SCRIPT') && CLI_SCRIPT && getenv('DB_USER_CRON')&&getenv('DB_PASS_CRON')) {
+    // Configuração para o CRON (Processos de fundo)
+    $CFG->dbuser = getenv('DB_USER_CRON');
+    $CFG->dbpass = getenv('DB_PASS_CRON');
+    // O Cron não tem timeout, pode demorar o quanto quiser
+} else {
+    $CFG->dbuser    = getenv('DB_USER') ?: 'moodle';
+    $CFG->dbpass    = getenv('DB_PASS') ?: '';
+    $CFG->prefix    = getenv('DB_PREFIX') ?: 'mdl_';
+}
+
 $CFG->dboptions = array (
   'dbport' => getenv('DB_PORT') ?: '',
   'dbpersist' => (bool) getenv('DB_PERSIST') ?: false,
@@ -454,7 +462,6 @@ $CFG->wwwroot   = getenv('MOODLE_URL');
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
 $CFG->directorypermissions = 0777;
-$CFG->preventfilelocking = true;
 EOF
 
 if [ ! -z "$MOODLE_EXTRA_PHP" ]; then echo "$MOODLE_EXTRA_PHP" >> "$MOODLE_DIR/config.php"; fi
