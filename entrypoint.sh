@@ -327,11 +327,10 @@ manage_repo() {
     echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 
-    # 1. Clone inicial (se não existir, não tem lock pra limpar ainda)
+    # 1. Clone inicial
     if [ ! -d "$path/.git" ]; then
         echo "    -> [NEW] Initializing and fetching..."
         mkdir -p "$path"
-        # Limpa diretório se não estiver vazio (mas sem .git)
         if [ -n "$(ls -A "$path" 2>/dev/null)" ]; then rm -rf "$path"/*; fi
 
         cd "$path"
@@ -339,6 +338,7 @@ manage_repo() {
         git remote add origin "$repo_url"
         git fetch --depth 1 origin "$target"
         git checkout -f FETCH_HEAD
+        # Instalação limpa dos filhos
         git submodule update --init --recursive --depth 1
         cd - > /dev/null
         return
@@ -347,29 +347,28 @@ manage_repo() {
     # Entra no diretório existente
     cd "$path"
 
-    # --- CORREÇÃO AQUI ---
-    # Remove travas estagnadas antes de qualquer operação
+    # Remove travas estagnadas
     if [ -d ".git" ]; then
-        # Remove locks comuns que impedem o git de rodar
-        rm -f .git/index.lock \
-              .git/HEAD.lock \
-              .git/shallow.lock \
-              .git/config.lock \
-              .git/refs/heads/*.lock \
-              .git/refs/remotes/origin/*.lock
-
-        # Opcional: Se for muito crítico, remove locks de submodules também
+        rm -f .git/index.lock .git/HEAD.lock .git/shallow.lock .git/config.lock \
+              .git/refs/heads/*.lock .git/refs/remotes/origin/*.lock
         find . -name "*.lock" -type f -path "*/.git/*" -delete 2>/dev/null
     fi
-    # ---------------------
 
     git config --global --add safe.directory "$path"
 
-    # Verifica se a URL mudou (útil se você mudou o repo no env)
     local current_url=$(git remote get-url origin 2>/dev/null)
     if [ "$current_url" != "$repo_url" ]; then
          git remote set-url origin "$repo_url"
     fi
+
+    # --- BLOCO DE PREPARAÇÃO DOS FILHOS (NOVIDADE) ---
+    # Sincroniza URLs caso o pai tenha mudado a origem de um submodule
+    git submodule sync --recursive
+
+    # Força limpeza dentro dos submodules atuais antes de mexer no pai
+    # Isso evita conflitos se um submodule estiver sujo
+    git submodule foreach --recursive 'git clean -fdx && git reset --hard' 2>/dev/null
+    # -------------------------------------------------
 
     case "$code_status" in
         "update")
@@ -378,7 +377,6 @@ manage_repo() {
             git fetch --depth 1 origin "$target"
             git checkout -f FETCH_HEAD
             git reset --hard FETCH_HEAD
-            git submodule update --init --recursive --depth 1
             ;;
         "reset")
             echo "    -> [RESET] Restoring..."
@@ -391,9 +389,15 @@ manage_repo() {
             else
                 git reset --hard "$target"
             fi
-            git submodule update --init --recursive --depth 1
             ;;
     esac
+
+    # --- ATUALIZAÇÃO DOS FILHOS (AJUSTADO) ---
+    # --force: Sobrescreve alterações locais nos submodules
+    # --recursive: Garante que submodules dentro de submodules sejam baixados
+    echo "    -> Updating Submodules..."
+    git submodule update --init --recursive --force --depth 1
+    # -----------------------------------------
 
     echo "    -> Current Commit: $(git rev-parse HEAD)"
     cd - > /dev/null
