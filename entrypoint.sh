@@ -356,10 +356,7 @@ manage_repo() {
 
     git config --global --add safe.directory "$path"
 
-    local current_url=$(git remote get-url origin 2>/dev/null)
-    if [ "$current_url" != "$repo_url" ]; then
-         git remote set-url origin "$repo_url"
-    fi
+    git remote set-url origin "$repo_url"
 
     # --- BLOCO DE PREPARAÇÃO DOS FILHOS (NOVIDADE) ---
     # Sincroniza URLs caso o pai tenha mudado a origem de um submodule
