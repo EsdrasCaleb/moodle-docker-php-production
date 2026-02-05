@@ -324,7 +324,7 @@ manage_repo() {
 
     if [ -z "$target" ]; then target="$MOODLE_VERSION"; fi
 
-    echo ">>> Managing Repo at: $path from: $repo_url"
+    echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 
     # 1. Clone inicial
@@ -360,7 +360,7 @@ manage_repo() {
 
     current_url=$(git remote get-url origin 2>/dev/null)
     if [ "$current_url" != "$repo_url" ]; then
-      echo "Change URL    OLD: $current_url | New: $repo_url"
+      echo "Change URL "
       git remote set-url origin "$repo_url"
     fi
 
