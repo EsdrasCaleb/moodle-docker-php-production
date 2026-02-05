@@ -324,7 +324,7 @@ manage_repo() {
 
     if [ -z "$target" ]; then target="$MOODLE_VERSION"; fi
 
-    echo ">>> Managing Repo at: $path"
+    echo ">>> Managing Repo at: $path from: $repo_url"
     echo "    Target: $target | Mode: $code_status"
 
     # 1. Clone inicial
@@ -356,7 +356,13 @@ manage_repo() {
 
     git config --global --add safe.directory "$path"
 
-    git remote set-url origin "$repo_url"
+    local current_url
+
+    current_url=$(git remote get-url origin 2>/dev/null)
+    if [ "$current_url" != "$repo_url" ]; then
+      echo "Change URL    OLD: $current_url | New: $repo_url"
+      git remote set-url origin "$repo_url"
+    fi
 
     # --- BLOCO DE PREPARAÇÃO DOS FILHOS (NOVIDADE) ---
     # Sincroniza URLs caso o pai tenha mudado a origem de um submodule
