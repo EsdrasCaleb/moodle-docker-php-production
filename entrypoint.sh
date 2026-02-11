@@ -322,8 +322,13 @@ manage_repo() {
     local target="$3"
     local code_status="$4"
 
-    if [ -z "$target" ]; then target="$MOODLE_VERSION"; fi
 
+    if [ -z "$target" ]; then target="$MOODLE_VERSION"; fi
+    if [ -z "$repo_url" ] || [ "$repo_url" = "null" ]; then
+        echo ">>> No Git URL provided for: $path"
+        echo "    -> Skipping Git operations (Local/Manual folder mode)."
+        return 0
+    fi
     echo ">>> Managing Repo at: $path"
     echo "    Target: $target | Mode: $code_status"
 

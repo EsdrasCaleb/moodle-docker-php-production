@@ -14,6 +14,16 @@ services:
     ports:
       - "11211:11211"
 
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    environment:
+      # Isso já deixa o campo 'Servidor' preenchido com o nome do serviço do banco
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+
   app:
     build:
       context: .
@@ -25,7 +35,6 @@ services:
       - memcached
     environment:
       MOODLE_URL: http://localhost
-
       DB_HOST: db
       DB_TYPE: pgsql
       DB_NAME: moodle
@@ -33,21 +42,16 @@ services:
       DB_USER_CRON: moodle
       DB_PASS_CRON: password
       DB_PASS: password
-
       MOODLE_VERSION: MOODLE_405_STABLE
       MOODLE_LANG: pt_br
-
       MOODLE_ADMIN_USER: admin
       MOODLE_ADMIN_PASS: MoodleAdmin123!
       MOODLE_ADMIN_EMAIL: admin@example.com
-
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
-
       PLUGIN_CODE_STATUS: update
       SITE_CODE_STATUS: update
       SERVER_MEMORY_USAGE_PERCENT: 20
-
       MOODLE_PLUGINS_JSON: |
         [
           {
@@ -61,20 +65,16 @@ services:
             "installpath": "mod/checklist"
           }
         ]
-
       # 🔥 MEMCACHED + SESSION HANDLER
       MOODLE_EXTRA_PHP: |
         $$CFG->debug = 32767;
         $$CFG->debugdisplay = 1;
-
         $$CFG->session_handler_class = '\core\session\memcached';
         $$CFG->session_memcached_save_path = 'memcached:11211';
         $$CFG->session_memcached_prefix = 'moodle_';
         $$CFG->session_memcached_acquire_lock_timeout = 120;
         $$CFG->session_memcached_lock_expire = 7200;
-
         $$CFG->cachestore_memcached_servers = 'memcached:11211';
-
     volumes:
       - moodle_data:/var/www/moodledata
     dns:
