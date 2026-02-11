@@ -591,6 +591,6 @@ else
           exit 1
       fi
 fi
-
+su -s /bin/sh www-data -c "php $MOODLE_DIR/admin/cli/purge_caches.php"
 echo ">>> Starting Supervisor..."
 exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
