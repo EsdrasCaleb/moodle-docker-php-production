@@ -295,9 +295,16 @@ http {
             fastcgi_read_timeout ${PHP_MAX_EXECUTION_TIME};
         }
 
+        location /dataroot/ {
+            internal;
+            alias ${MOODLE_DATA}/; # O caminho real da pasta de dados
+        }
+
         location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
             expires 365d;
-            add_header Cache-Control "public, no-transform";
+            add_header Cache-Control "public, no-transform, immutable";
+            log_not_found off;
+            access_log off;
             try_files \$uri \$uri/ /index.php?\$query_string;
         }
 
@@ -473,7 +480,13 @@ $CFG->dboptions = array (
 $CFG->wwwroot   = getenv('MOODLE_URL');
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
-$CFG->directorypermissions = 0777;
+$CFG->directorypermissions = 0700;
+
+$CFG->xsendfile = 'X-Accel-Redirect';
+$CFG->xsendfilealiases = array(
+    '/dataroot/' => $CFG->dataroot,
+);
+
 EOF
 
 if [ ! -z "$MOODLE_EXTRA_PHP" ]; then echo "$MOODLE_EXTRA_PHP" >> "$MOODLE_DIR/config.php"; fi
@@ -536,12 +549,17 @@ fi
 # 5. Final Permissions & Web Server
 # ----------------------------------------------------------------------
 echo ">>> Finalizing permissions..."
-chown -R root:www-data "$MOODLE_DIR" "$MOODLE_DATA"
-chmod -R 755 "$MOODLE_DIR"
-chmod -R 777 "$MOODLE_DATA"
-chmod -R 755 "$CODE_CACHE_DIR"
-[ -d "$PLUGIN_CACHE_ROOT" ] && chmod -R 755 "$PLUGIN_CACHE_ROOT"
-
+chmod -R 750 "$MOODLE_DIR"
+chmod -R 700 "$MOODLE_DATA"
+chown -R root:www-data "$MOODLE_DIR"
+chown -R www-data:www-data "$MOODLE_DATA"
+chown -R root:root "$CODE_CACHE_DIR" "$PLUGIN_CACHE_ROOT"
+echo ">>> Fixing Nginx temp paths (Crucial for Uploads)..."
+# Cria os diretórios caso não existam
+mkdir -p /var/lib/nginx/body /var/lib/nginx/fastcgi /var/lib/nginx/proxy
+# Garante que o www-data (usuário do Nginx/PHP) seja dono
+chown -R www-data:www-data /var/lib/nginx
+chmod -R 700 /var/lib/nginx
 
 # ----------------------------------------------------------------------
 # 6. Database & Upgrade
