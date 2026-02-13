@@ -300,12 +300,12 @@ http {
             alias ${MOODLE_DATA}/; # O caminho real da pasta de dados
         }
 
-        location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
+        location ~* \.(jpg|jpeg|gif|png|ico|xml|svg|webp)$ {
             expires 365d;
             add_header Cache-Control "public, no-transform, immutable";
             log_not_found off;
             access_log off;
-            try_files \$uri \$uri/ /index.php?\$query_string;
+            try_files $uri $uri/ =404; # Se não achar a imagem, dá 404 real em vez de carregar o Moodle inteiro
         }
 
 
