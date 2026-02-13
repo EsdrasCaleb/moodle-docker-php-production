@@ -28,6 +28,11 @@ services:
     build:
       context: .
       dockerfile: DockerfileAlpine
+      args:
+        MOODLE_LANG: pt_br
+        MOODLE_ADMIN_USER: admin
+        MOODLE_ADMIN_PASS: MoodleAdmin123!
+        MOODLE_ADMIN_EMAIL: admin@example.com
     ports:
       - "80:80"
     depends_on:
@@ -42,29 +47,25 @@ services:
       DB_USER_CRON: moodle
       DB_PASS_CRON: password
       DB_PASS: password
-      MOODLE_VERSION: MOODLE_405_STABLE
-      MOODLE_LANG: pt_br
-      MOODLE_ADMIN_USER: admin
-      MOODLE_ADMIN_PASS: MoodleAdmin123!
-      MOODLE_ADMIN_EMAIL: admin@example.com
+      MOODLE_VERSION: MOODLE_401_STABLE
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
       PLUGIN_CODE_STATUS: update
       SITE_CODE_STATUS: update
       SERVER_MEMORY_USAGE_PERCENT: 20
-      MOODLE_PLUGINS_JSON: |
-        [
-          {
-            "giturl": "https://github.com/h5p/moodle-mod_hvp.git",
-            "branch": "stable",
-            "installpath": "mod/hvp"
-          },
-          {
-            "giturl": "https://github.com/davosmith/moodle-checklist.git",
-            "branch": "master",
-            "installpath": "mod/checklist"
-          }
-        ]
+#      MOODLE_PLUGINS_JSON: |
+#        [
+#          {
+#            "giturl": "https://github.com/h5p/moodle-mod_hvp.git",
+#            "branch": "stable",
+#            "installpath": "mod/hvp"
+#          },
+#          {
+#            "giturl": "https://github.com/davosmith/moodle-checklist.git",
+#            "branch": "master",
+#            "installpath": "mod/checklist"
+#          }
+#        ]
       # 🔥 MEMCACHED + SESSION HANDLER
       MOODLE_EXTRA_PHP: |
         $$CFG->debug = 32767;

@@ -282,6 +282,7 @@ http {
 
             fastcgi_pass 127.0.0.1:9000;
             fastcgi_index index.php;
+            include /etc/nginx/mime.types;
             include fastcgi_params;
             fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
             fastcgi_param PATH_INFO \$fastcgi_path_info;
@@ -298,14 +299,6 @@ http {
         location /dataroot/ {
             internal;
             alias ${MOODLE_DATA}/; # O caminho real da pasta de dados
-        }
-
-        location ~* \.(jpg|jpeg|gif|png|ico|xml|svg|webp)$ {
-            expires 365d;
-            add_header Cache-Control "public, no-transform, immutable";
-            log_not_found off;
-            access_log off;
-            try_files $uri $uri/ =404; # Se não achar a imagem, dá 404 real em vez de carregar o Moodle inteiro
         }
 
 
