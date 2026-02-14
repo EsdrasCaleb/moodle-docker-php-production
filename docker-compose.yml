@@ -27,7 +27,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: DockerfileAlpine
+      #dockerfile: DockerfileAlpine
       args:
         MOODLE_LANG: pt_br
         MOODLE_ADMIN_USER: admin

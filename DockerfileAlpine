@@ -7,27 +7,32 @@ ENV MOODLE_DIR="/var/www/moodle"
 ENV MOODLE_DATA="/var/www/moodledata"
 
 # 1. Dependências de Execução (Ficam na imagem final)
-# libmemcached-libs: Necessária para o PHP rodar o memcached
+# Mantivemos apenas binários e bibliotecas compartilhadas (.so)
 RUN apk add --no-cache \
     bash nginx supervisor git coreutils jq \
-    libpng libjpeg-turbo freetype libzip \
-    icu-libs libxml2 libpq oniguruma \
-    libxslt libsodium zlib openssl \
     graphviz aspell ghostscript poppler-utils \
-    libevent-dev libmemcached-libs
+    freetype libpng libjpeg-turbo \
+    libzip icu-libs libxml2 \
+    libpq mariadb-connector-c-dev \
+    libxslt libsodium zlib \
+    libmemcached-libs libevent
 
 # 2. Build das Extensões (Instala > Compila > Remove Lixo)
 RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
-    libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev \
-    icu-dev libxml2-dev postgresql-dev oniguruma-dev \
-    libxslt-dev libsodium-dev zlib-dev \
-    libmemcached-dev \
+    freetype-dev libpng-dev libjpeg-turbo-dev \
+    libzip-dev icu-dev libxml2-dev \
+    postgresql-dev mariadb-dev \
+    oniguruma-dev libxslt-dev libsodium-dev zlib-dev \
+    libmemcached-dev cyrus-sasl-dev \
+    \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         gd intl zip soap opcache pdo pdo_pgsql pgsql mysqli pdo_mysql exif bcmath xsl sodium \
+    \
     && pecl install apcu redis memcached \
     && docker-php-ext-enable apcu redis memcached \
+    \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
