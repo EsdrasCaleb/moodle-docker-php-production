@@ -27,7 +27,7 @@ services:
   app:
     build:
       context: .
-      #dockerfile: DockerfileAlpine
+      dockerfile: DockerfileAlpine
       args:
         MOODLE_LANG: pt_br
         MOODLE_ADMIN_USER: admin
@@ -47,7 +47,7 @@ services:
       DB_USER_CRON: moodle
       DB_PASS_CRON: password
       DB_PASS: password
-      MOODLE_VERSION: MOODLE_401_STABLE
+      MOODLE_VERSION: MOODLE_405_STABLE
       PHP_MEMORY_LIMIT: 512M
       PHP_MAX_EXECUTION_TIME: 600
       PLUGIN_CODE_STATUS: update
