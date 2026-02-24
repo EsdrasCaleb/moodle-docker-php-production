@@ -31,7 +31,22 @@ set -e
 : "${DB_PERSIST:=0}"
 
 
-# Nginx Adjustment
+# Pega os IDs passados pelo CapRover ou usa o padrão do www-data (33)
+PUID=${PUID:-33}
+PGID=${PGID:-33}
+
+# Verifica se os IDs são diferentes do padrão do sistema
+if [ "$PUID" != "33" ] || [ "$PGID" != "33" ]; then
+    echo ">> Alterando o UID do www-data para $PUID e o GID para $PGID..."
+
+    # Altera o ID do grupo e do usuário www-data para os IDs do host
+    groupmod -o -g "$PGID" www-data
+    usermod -o -u "$PUID" -g www-data www-data
+
+    echo ">> Ajustando as permissões das pastas montadas..."
+    chown -R www-data:www-data /var/www/moodle
+    chown -R www-data:www-data /var/www/moodledata
+fi
 
 # Moodle 5.1+ requer /public, versões anteriores usam a raiz
 VERSION_NUM=$(echo "$MOODLE_VERSION" | tr -dc '0-9')
