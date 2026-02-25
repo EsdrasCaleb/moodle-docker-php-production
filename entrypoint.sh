@@ -322,6 +322,15 @@ http {
             deny all;
             return 404;
         }
+
+        location ~* ^(?!.*\.php/).*\.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
+            expires 365d;
+            add_header Cache-Control "public, no-transform";
+            add_header Cache-Control "public, no-transform, immutable";
+            log_not_found off;
+            access_log off;
+            try_files $uri $uri/ /index.php?$query_string;
+        }
     }
 }
 EOF
