@@ -291,23 +291,18 @@ http {
         location ~ [^/]\.php(/|$) {
             fastcgi_split_path_info ^(.+?\.php)(/.*)$;
 
-            if (!-f \$document_root\$fastcgi_script_name) {
-                return 404;
-            }
-
             fastcgi_pass 127.0.0.1:9000;
             fastcgi_index index.php;
             include /etc/nginx/mime.types;
             include fastcgi_params;
+
             fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
             fastcgi_param PATH_INFO \$fastcgi_path_info;
 
-            # BUFFERS CRUCIAIS PARA O MOODLE (Headers Grandes)
             fastcgi_buffers 4 ${MAX_BUFFER_SIZE}k;
             fastcgi_buffer_size ${FASTCGI_BUFFER}k;
             fastcgi_busy_buffers_size ${MAX_BUFFER_SIZE}k;
 
-            # Timeout longo para scripts de instalação/backup
             fastcgi_read_timeout ${PHP_MAX_EXECUTION_TIME};
         }
 
@@ -316,20 +311,13 @@ http {
             alias ${MOODLE_DATA}/; # O caminho real da pasta de dados
         }
 
-
-        # Bloqueio de segurança padrão do Moodle
-        location ~ (/vendor/|/node_modules/|composer\.json|/readme|/README|/LICENSE|/COPYING|/tests/|/classes/|/cli/) {
-            deny all;
-            return 404;
-        }
-
-        location ~* ^(?!.*\.php/).*\.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
+        location ~* ^([^/]\.php(/|$)).*\.(jpg|jpeg|gif|png|css|js|ico|xml|svg|woff|woff2|ttf|eot)$ {
             expires 365d;
             add_header Cache-Control "public, no-transform";
             add_header Cache-Control "public, no-transform, immutable";
             log_not_found off;
             access_log off;
-            try_files $uri $uri/ /index.php?$query_string;
+            try_files \$uri =404;
         }
     }
 }
